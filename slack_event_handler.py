@@ -22,7 +22,7 @@ def slack_events():
         event = data['event']
         if event['type'] == 'reaction_added' and event['reaction'] == REACTION_NAME:
             handle_reaction_added(event)
-    
+
     return jsonify({'status': 'ok'})
 
 def handle_reaction_added(event):
@@ -31,7 +31,7 @@ def handle_reaction_added(event):
 
     # Get the thread replies
     replies = get_thread_replies(channel, timestamp)
-    
+
     # Delete the parent message and all replies
     for reply in replies:
         delete_message(channel, reply['ts'])
