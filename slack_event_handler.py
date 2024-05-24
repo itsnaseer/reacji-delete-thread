@@ -6,7 +6,7 @@ from flask import Flask, request, jsonify
 app = Flask(__name__)
 SLACK_BOT_TOKEN = os.environ.get('SLACK_BOT_TOKEN')
 VERIFICATION_TOKEN = os.environ.get('VERIFICATION_TOKEN')
-REACTION_NAME = "delete-thread"
+REACTION_NAME = "your_reaction_name"
 
 @app.route('/slack/events', methods=['POST'])
 def slack_events():
@@ -25,6 +25,10 @@ def slack_events():
     
     return jsonify({'status': 'ok'})
 
+@app.route('/')
+def index():
+    return "Hello, this is the Slack event handler app."
+
 def handle_reaction_added(event):
     channel = event['item']['channel']
     timestamp = event['item']['ts']
@@ -41,7 +45,7 @@ def get_thread_replies(channel, timestamp):
     headers = {
         'Content-Type': 'application/json',
         'Authorization': f'Bearer {SLACK_BOT_TOKEN}'
-        }
+    }
     params = {
         'channel': channel,
         'ts': timestamp
