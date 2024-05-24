@@ -6,7 +6,7 @@ from flask import Flask, request, jsonify
 app = Flask(__name__)
 SLACK_BOT_TOKEN = os.environ.get('SLACK_BOT_TOKEN')
 VERIFICATION_TOKEN = os.environ.get('VERIFICATION_TOKEN')
-REACTION_NAME = delete-thread"
+REACTION_NAME = "delete-thread"
 
 @app.route('/slack/events', methods=['POST'])
 def slack_events():
