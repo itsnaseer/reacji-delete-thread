@@ -6,7 +6,7 @@ from flask import Flask, request, jsonify
 app = Flask(__name__)
 SLACK_BOT_TOKEN = os.environ.get('SLACK_BOT_TOKEN')
 VERIFICATION_TOKEN = os.environ.get('VERIFICATION_TOKEN')
-REACTION_NAME = "your_reaction_name"  # Replace with your specific reaction name
+REACTION_NAME = "delete-thread"  # Ensure this matches your specific reaction name
 
 @app.route('/slack/events', methods=['POST'])
 def slack_events():
@@ -48,7 +48,8 @@ def handle_reaction_added(event):
     # Delete the parent message and all replies
     for reply in replies:
         print(f"Attempting to delete message {reply['ts']} in channel {channel}")  # Debugging statement
-        delete_message(channel, reply['ts'])
+        delete_response = delete_message(channel, reply['ts'])
+        print(f"Deletion response: {delete_response}")  # Debugging statement
 
 def get_thread_replies(channel, timestamp):
     url = "https://slack.com/api/conversations.replies"
@@ -66,22 +67,4 @@ def get_thread_replies(channel, timestamp):
         return response.json().get('messages', [])
     return []
 
-def delete_message(channel, timestamp):
-    url = "https://slack.com/api/chat.delete"
-    headers = {
-        'Content-Type': 'application/json',
-        'Authorization': f'Bearer {SLACK_BOT_TOKEN}'
-    }
-    data = {
-        'channel': channel,
-        'ts': timestamp
-    }
-    response = requests.post(url, headers=headers, data=json.dumps(data))
-    print(f"Deleting message {timestamp}, response: {response.text}")  # Debugging statement
-    if response.status_code != 200:
-        print(f"Failed to delete message: {response.text}")
-    return response.json()
-
-if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 3000))
-    app.run(host='0.0.0.0', port=port)
+def delete_message(channel,​⬤
