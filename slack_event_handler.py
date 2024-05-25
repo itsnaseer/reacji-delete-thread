@@ -47,9 +47,17 @@ def handle_reaction_added(event):
     
     # Delete the parent message and all replies
     for reply in replies:
-        print(f"Attempting to delete message {reply['ts']} in channel {channel}")  # Debugging statement
-        delete_response = delete_message(channel, reply['ts'])
-        print(f"Deletion response: {delete_response}")  # Debugging statement
+        # Add a check to ensure the message is posted by the bot
+        if is_message_from_bot(reply['user']):
+            print(f"Attempting to delete message {reply['ts']} in channel {channel}")  # Debugging statement
+            delete_response = delete_message(channel, reply['ts'])
+            print(f"Deletion response: {delete_response}")  # Debugging statement
+        else:
+            print(f"Skipping deletion of message {reply['ts']} as it is not posted by the bot.")  # Debugging statement
+
+def is_message_from_bot(user_id):
+    # Check if the user ID matches the bot user ID
+    return user_id == 'U0755AZNZA8'  # Replace with your bot user ID
 
 def get_thread_replies(channel, timestamp):
     url = "https://slack.com/api/conversations.replies"
