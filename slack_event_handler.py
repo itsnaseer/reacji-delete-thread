@@ -7,6 +7,7 @@ app = Flask(__name__)
 SLACK_BOT_TOKEN = os.environ.get('SLACK_BOT_TOKEN')
 VERIFICATION_TOKEN = os.environ.get('VERIFICATION_TOKEN')
 REACTION_NAME = "delete-thread"  # Ensure this matches your specific reaction name
+ADMIN_USER_ID = 'U013N66U8DQ'  # Replace with your admin user ID
 
 @app.route('/slack/events', methods=['POST'])
 def slack_events():
@@ -54,10 +55,29 @@ def handle_reaction_added(event):
             print(f"Deletion response: {delete_response}")  # Debugging statement
         else:
             print(f"Skipping deletion of message {reply['ts']} as it is not posted by the bot.")  # Debugging statement
+            notify_admin(channel, reply['ts'], reply['user'])
 
 def is_message_from_bot(user_id):
     # Check if the user ID matches the bot user ID
     return user_id == 'U0755AZNZA8'  # Replace with your bot user ID
+
+def notify_admin(channel, timestamp, user_id):
+    message = f"Cannot delete message {timestamp} in channel {channel} posted by user {user_id}"
+    print(message)  # Log the message
+    send_message(ADMIN_USER_ID, message)
+
+def send_message(user_id, text):
+    url = "https://slack.com/api/chat.postMessage"
+    headers = {
+        'Content-Type': 'application/json',
+        'Authorization': f'Bearer {SLACK_BOT_TOKEN}'
+    }
+    data = {
+        'channel': user_id,
+        'text': text
+    }
+    response = requests.post(url, headers=headers, data=json.dumps(data))
+    print(f"Sent notification to admin, response: {response.text}")
 
 def get_thread_replies(channel, timestamp):
     url = "https://slack.com/api/conversations.replies"
