@@ -6,7 +6,7 @@ from flask import Flask, request, jsonify
 app = Flask(__name__)
 SLACK_BOT_TOKEN = os.environ.get('SLACK_BOT_TOKEN')
 VERIFICATION_TOKEN = os.environ.get('VERIFICATION_TOKEN')
-REACTION_NAME = "delete-thread"  # Replace with your specific reaction name
+REACTION_NAME = "your_reaction_name"  # Replace with your specific reaction name
 
 @app.route('/slack/events', methods=['POST'])
 def slack_events():
@@ -47,6 +47,7 @@ def handle_reaction_added(event):
     
     # Delete the parent message and all replies
     for reply in replies:
+        print(f"Attempting to delete message {reply['ts']} in channel {channel}")  # Debugging statement
         delete_message(channel, reply['ts'])
 
 def get_thread_replies(channel, timestamp):
@@ -79,6 +80,7 @@ def delete_message(channel, timestamp):
     print(f"Deleting message {timestamp}, response: {response.text}")  # Debugging statement
     if response.status_code != 200:
         print(f"Failed to delete message: {response.text}")
+    return response.json()
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 3000))
