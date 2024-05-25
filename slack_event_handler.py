@@ -6,7 +6,7 @@ from flask import Flask, request, jsonify
 app = Flask(__name__)
 SLACK_BOT_TOKEN = os.environ.get('SLACK_BOT_TOKEN')
 VERIFICATION_TOKEN = os.environ.get('VERIFICATION_TOKEN')
-REACTION_NAME = "your_reaction_name"  # Replace with your specific reaction name
+REACTION_NAME = "delete-thread"  # Replace with your specific reaction name
 
 @app.route('/slack/events', methods=['POST'])
 def slack_events():
