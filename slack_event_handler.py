@@ -67,4 +67,22 @@ def get_thread_replies(channel, timestamp):
         return response.json().get('messages', [])
     return []
 
-def delete_message(channel,​⬤
+def delete_message(channel, timestamp):
+    url = "https://slack.com/api/chat.delete"
+    headers = {
+        'Content-Type': 'application/json',
+        'Authorization': f'Bearer {SLACK_BOT_TOKEN}'
+    }
+    data = {
+        'channel': channel,
+        'ts': timestamp
+    }
+    response = requests.post(url, headers=headers, data=json.dumps(data))
+    print(f"Deleting message {timestamp}, response: {response.text}")  # Debugging statement
+    if response.status_code != 200:
+        print(f"Failed to delete message: {response.text}")
+    return response.json()
+
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 3000))
+    app.run(host='0.0.0.0', port=port)
