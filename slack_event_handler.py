@@ -1,96 +1,70 @@
 import os
 import json
 import requests
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, redirect, url_for
 
 app = Flask(__name__)
-SLACK_BOT_TOKEN = os.environ.get('SLACK_BOT_TOKEN')
-VERIFICATION_TOKEN = os.environ.get('VERIFICATION_TOKEN')
-REACTION_NAME = "delete-thread"  # Ensure this matches your specific reaction name
-ADMIN_USER_ID = 'U013N66U8DQ'  # Replace with your admin user ID
-
-@app.route('/slack/events', methods=['POST'])
-def slack_events():
-    data = request.json
-    print("Received event:", data)  # Debugging statement
-
-    # Handle URL verification challenge
-    if 'challenge' in data:
-        return jsonify({'challenge': data['challenge']})
-
-    if data['token'] != VERIFICATION_TOKEN:
-        print("Verification token mismatch")  # Debugging statement
-        return jsonify({'error': 'Verification token mismatch'}), 403
-
-    if 'event' in data:
-        event = data['event']
-        print("Received event type:", event['type'])  # Debugging statement
-        if event['type'] == 'reaction_added' and event['reaction'] == REACTION_NAME:
-            print("Handling reaction added event")  # Debugging statement
-            handle_reaction_added(event)
-    
-    return jsonify({'status': 'ok'})
+SLACK_CLIENT_ID = os.environ.get('SLACK_CLIENT_ID')
+SLACK_CLIENT_SECRET = os.environ.get('SLACK_CLIENT_SECRET')
+SLACK_SIGNING_SECRET = os.environ.get('SLACK_SIGNING_SECRET')
+OAUTH_SCOPE = "channels:history,channels:read,chat:write,reactions:read,users:read"
+USER_TOKEN = None  # Placeholder for user token storage
 
 @app.route('/')
 def index():
     return "Hello, this is the Slack event handler app."
+
+@app.route('/slack/oauth', methods=['GET'])
+def oauth_authorize():
+    return redirect(f"https://slack.com/oauth/v2/authorize?client_id={SLACK_CLIENT_ID}&scope={OAUTH_SCOPE}&user_scope={OAUTH_SCOPE}&redirect_uri={url_for('oauth_callback', _external=True)}")
+
+@app.route('/slack/oauth/callback', methods=['GET'])
+def oauth_callback():
+    code = request.args.get('code')
+    response = requests.post("https://slack.com/api/oauth.v2.access", data={
+        'client_id': SLACK_CLIENT_ID,
+        'client_secret': SLACK_CLIENT_SECRET,
+        'code': code,
+        'redirect_uri': url_for('oauth_callback', _external=True)
+    })
+    auth_response = response.json()
+    global USER_TOKEN
+    USER_TOKEN = auth_response['authed_user']['access_token']
+    return "OAuth authorization successful. You can close this window."
+
+@app.route('/slack/events', methods=['POST'])
+def slack_events():
+    data = request.json
+    if 'challenge' in data:
+        return jsonify({'challenge': data['challenge']})
+
+    if 'event' in data:
+        event = data['event']
+        if event['type'] == 'reaction_added' and event['reaction'] == 'delete-thread':
+            handle_reaction_added(event)
+    
+    return jsonify({'status': 'ok'})
 
 def handle_reaction_added(event):
     item = event['item']
     channel = item['channel']
     timestamp = item['ts']
 
-    print(f"Channel: {channel}, Timestamp: {timestamp}")  # Debugging statement
-
-    # Get the thread replies
     replies = get_thread_replies(channel, timestamp)
-    print("Replies:", replies)  # Debugging statement
-    
-    # Delete the parent message and all replies
     for reply in replies:
-        # Add a check to ensure the message is posted by the bot
-        if is_message_from_bot(reply['user']):
-            print(f"Attempting to delete message {reply['ts']} in channel {channel}")  # Debugging statement
-            delete_response = delete_message(channel, reply['ts'])
-            print(f"Deletion response: {delete_response}")  # Debugging statement
-        else:
-            print(f"Skipping deletion of message {reply['ts']} as it is not posted by the bot.")  # Debugging statement
-            notify_admin(channel, reply['ts'], reply['user'])
-
-def is_message_from_bot(user_id):
-    # Check if the user ID matches the bot user ID
-    return user_id == 'U0755AZNZA8'  # Replace with your bot user ID
-
-def notify_admin(channel, timestamp, user_id):
-    message = f"Cannot delete message {timestamp} in channel {channel} posted by user {user_id}"
-    print(message)  # Log the message
-    send_message(ADMIN_USER_ID, message)
-
-def send_message(user_id, text):
-    url = "https://slack.com/api/chat.postMessage"
-    headers = {
-        'Content-Type': 'application/json',
-        'Authorization': f'Bearer {SLACK_BOT_TOKEN}'
-    }
-    data = {
-        'channel': user_id,
-        'text': text
-    }
-    response = requests.post(url, headers=headers, data=json.dumps(data))
-    print(f"Sent notification to admin, response: {response.text}")
+        delete_message(channel, reply['ts'])
 
 def get_thread_replies(channel, timestamp):
     url = "https://slack.com/api/conversations.replies"
     headers = {
         'Content-Type': 'application/json',
-        'Authorization': f'Bearer {SLACK_BOT_TOKEN}'
+        'Authorization': f'Bearer {USER_TOKEN}'
     }
     params = {
         'channel': channel,
         'ts': timestamp
     }
     response = requests.get(url, headers=headers, params=params)
-    print("Get thread replies response:", response.json())  # Debugging statement
     if response.status_code == 200:
         return response.json().get('messages', [])
     return []
@@ -99,18 +73,14 @@ def delete_message(channel, timestamp):
     url = "https://slack.com/api/chat.delete"
     headers = {
         'Content-Type': 'application/json',
-        'Authorization': f'Bearer {SLACK_BOT_TOKEN}'
+        'Authorization': f'Bearer {USER_TOKEN}'
     }
     data = {
         'channel': channel,
         'ts': timestamp
     }
     response = requests.post(url, headers=headers, data=json.dumps(data))
-    print(f"Deleting message {timestamp}, response: {response.text}")  # Debugging statement
-    if response.status_code != 200:
-        print(f"Failed to delete message: {response.text}")
-    return response.json()
+    print(f"Deleting message {timestamp}, response: {response.text}")
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 3000))
-    app.run(host='0.0.0.0', port=port)
+    app.run(port=int(os.environ.get('PORT', 3000)), host='0.0.0.0')
