@@ -2,13 +2,26 @@ import os
 import json
 import requests
 from flask import Flask, request, jsonify, redirect, url_for
+from flask_sqlalchemy import SQLAlchemy
 
 app = Flask(__name__)
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///tokens.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db = SQLAlchemy(app)
 
 SLACK_CLIENT_ID = os.environ.get('SLACK_CLIENT_ID')
 SLACK_CLIENT_SECRET = os.environ.get('SLACK_CLIENT_SECRET')
 SLACK_SIGNING_SECRET = os.environ.get('SLACK_SIGNING_SECRET')
 OAUTH_SCOPE = "channels:history,channels:read,chat:write,reactions:read,users:read"
+
+class UserToken(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.String(50), unique=True, nullable=False)
+    token = db.Column(db.String(500), nullable=False)
+
+@app.before_first_request
+def create_tables():
+    db.create_all()
 
 @app.route('/')
 def index():
@@ -31,9 +44,13 @@ def oauth_callback():
     user_id = auth_response['authed_user']['id']
     token = auth_response['authed_user']['access_token']
 
-    # Store the user token in an environment variable
-    env_var_name = f'SLACK_USER_TOKEN_{user_id}'
-    os.environ[env_var_name] = token
+    user_token = UserToken.query.filter_by(user_id=user_id).first()
+    if user_token:
+        user_token.token = token
+    else:
+        user_token = UserToken(user_id=user_id, token=token)
+        db.session.add(user_token)
+    db.session.commit()
 
     return "OAuth authorization successful. You can close this window."
 
@@ -56,10 +73,9 @@ def handle_reaction_added(event):
     timestamp = item['ts']
     user_id = event['user']
 
-    # Retrieve the user token from environment variables
-    env_var_name = f'SLACK_USER_TOKEN_{user_id}'
-    token = os.environ.get(env_var_name)
-    if token:
+    user_token = UserToken.query.filter_by(user_id=user_id).first()
+    if user_token:
+        token = user_token.token
         replies = get_thread_replies(channel, timestamp, token)
         for reply in replies:
             delete_message(channel, reply['ts'], token)
