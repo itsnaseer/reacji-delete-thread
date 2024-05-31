@@ -27,7 +27,9 @@ def slack_events():
                     client.chat_delete(channel=channel, ts=message['ts'])
             except SlackApiError as e:
                 print(f"Error deleting message: {e.response['error']}")
+            except Exception as e:
+                print(f"Unexpected error: {str(e)}")
     return '', 200
 
 if __name__ == '__main__':
-    app.run(debug=True, port=os.getenv('PORT', 3000))
+    app.run(debug=True, port=int(os.environ.get('PORT', 3000)))
