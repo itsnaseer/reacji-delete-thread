@@ -4,6 +4,7 @@ from slack_sdk.errors import SlackApiError
 from flask import Flask, request, jsonify
 from dotenv import load_dotenv
 
+# Load environment variables from .env file
 load_dotenv()
 
 app = Flask(__name__)
@@ -32,4 +33,5 @@ def slack_events():
     return '', 200
 
 if __name__ == '__main__':
-    app.run(debug=True, port=int(os.environ.get('PORT', 3000)))
+    port = int(os.environ.get('PORT', 3000))
+    app.run(debug=True, host='0.0.0.0', port=port)
