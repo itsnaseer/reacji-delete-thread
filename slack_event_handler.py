@@ -1,38 +1,33 @@
-const { App } = require('@slack/bolt');
+import os
+from slack_sdk import WebClient
+from slack_sdk.errors import SlackApiError
+from flask import Flask, request, jsonify
+from dotenv import load_dotenv
 
-const app = new App({
-  token: process.env.SLACK_BOT_TOKEN,
-  signingSecret: process.env.SLACK_SIGNING_SECRET
-});
+load_dotenv()
 
-app.event('reaction_added', async ({ event, client }) => {
-  if (event.reaction === 'specific_reaction') {
-    try {
-      // Delete the original message
-      await client.chat.delete({
-        channel: event.item.channel,
-        ts: event.item.ts
-      });
+app = Flask(__name__)
+client = WebClient(token=os.getenv("SLACK_USER_TOKEN"))
 
-      // Fetch and delete all threaded replies
-      const replies = await client.conversations.replies({
-        channel: event.item.channel,
-        ts: event.item.ts
-      });
+@app.route('/slack/events', methods=['POST'])
+def slack_events():
+    data = request.json
+    if 'event' in data:
+        event = data['event']
+        if event.get('type') == 'reaction_added' and event.get('reaction') == 'specific_reaction':
+            channel = event['item']['channel']
+            ts = event['item']['ts']
+            try:
+                # Delete the original message
+                client.chat_delete(channel=channel, ts=ts)
+                
+                # Fetch and delete all threaded replies
+                response = client.conversations_replies(channel=channel, ts=ts)
+                for message in response['messages']:
+                    client.chat_delete(channel=channel, ts=message['ts'])
+            except SlackApiError as e:
+                print(f"Error deleting message: {e.response['error']}")
+    return '', 200
 
-      for (const reply of replies.messages) {
-        await client.chat.delete({
-          channel: event.item.channel,
-          ts: reply.ts
-        });
-      }
-    } catch (error) {
-      console.error(error);
-    }
-  }
-});
-
-(async () => {
-  await app.start(process.env.PORT || 3000);
-  console.log('⚡️ Bolt app is running!');
-})();
+if __name__ == '__main__':
+    app.run(debug=True, port=os.getenv('PORT', 3000))
