@@ -14,7 +14,7 @@ def slack_events():
     data = request.json
     if 'event' in data:
         event = data['event']
-        if event.get('type') == 'reaction_added' and event.get('reaction') == 'specific_reaction':
+        if event.get('type') == 'reaction_added' and event.get('reaction') == 'delete-thread':
             channel = event['item']['channel']
             ts = event['item']['ts']
             try:
