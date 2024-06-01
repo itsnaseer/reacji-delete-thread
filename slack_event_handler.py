@@ -19,15 +19,20 @@ def slack_events():
             channel = event['item']['channel']
             ts = event['item']['ts']
             try:
-                # Delete the original message
-                client.chat_delete(channel=channel, ts=ts)
-                
                 # Fetch and delete all threaded replies
                 response = client.conversations_replies(channel=channel, ts=ts)
                 for message in response['messages']:
-                    client.chat_delete(channel=channel, ts=message['ts'])
+                    # Only delete replies, not the initial message
+                    if message['ts'] != ts:
+                        try:
+                            client.chat_delete(channel=channel, ts=message['ts'])
+                        except SlackApiError as e:
+                            print(f"Error deleting reply: {e.response['error']}")
+                
+                # Finally, delete the original message
+                client.chat_delete(channel=channel, ts=ts)
             except SlackApiError as e:
-                print(f"Error deleting message: {e.response['error']}")
+                print(f"Error fetching replies or deleting message: {e.response['error']}")
             except Exception as e:
                 print(f"Unexpected error: {str(e)}")
     return '', 200
