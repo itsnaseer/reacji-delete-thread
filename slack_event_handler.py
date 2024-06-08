@@ -39,6 +39,10 @@ state_store = MemoryStateStore()
 
 authorize_url_generator = AuthorizeUrlGenerator(client_id=client_id, scopes=scopes, redirect_uri=redirect_uri)
 
+@app.route('/')
+def index():
+    return "Slack App is running!", 200
+
 @app.route('/install', methods=['GET'])
 def install():
     state = state_store.issue()
