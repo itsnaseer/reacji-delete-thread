@@ -1,4 +1,5 @@
 import os
+import uuid
 from slack_sdk import WebClient
 from slack_sdk.oauth import AuthorizeUrlGenerator, OAuthStateStore
 from slack_sdk.errors import SlackApiError
