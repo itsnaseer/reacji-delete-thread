@@ -1,5 +1,6 @@
 import os
 import uuid
+import logging
 from slack_sdk import WebClient
 from slack_sdk.oauth import AuthorizeUrlGenerator, OAuthStateStore
 from slack_sdk.errors import SlackApiError
@@ -12,6 +13,9 @@ app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY")
 
 client = WebClient()
+
+# Set up logging
+logging.basicConfig(level=logging.DEBUG)
 
 # OAuth configuration
 client_id = os.getenv("SLACK_CLIENT_ID")
@@ -27,12 +31,15 @@ class MemoryStateStore(OAuthStateStore):
     def issue(self):
         state = str(uuid.uuid4())
         self.store[state] = True
+        logging.debug(f"Issued state: {state}")
         return state
 
     def consume(self, state):
         if state in self.store:
             del self.store[state]
+            logging.debug(f"Consumed state: {state}")
             return True
+        logging.debug(f"State not found: {state}")
         return False
 
 state_store = MemoryStateStore()
@@ -47,28 +54,39 @@ def index():
 def install():
     state = state_store.issue()
     url = authorize_url_generator.generate(state=state)
+    logging.debug(f"Generated OAuth URL: {url}")
     return redirect(url)
 
 @app.route('/oauth/callback', methods=['GET'])
 def oauth_callback():
-    code = request.args['code']
-    state = request.args['state']
+    code = request.args.get('code')
+    state = request.args.get('state')
 
     if not state_store.consume(state):
+        logging.error(f"Invalid state: {state}")
         return "Invalid state", 400
 
-    response = client.oauth_v2_access(
-        client_id=client_id,
-        client_secret=client_secret,
-        code=code,
-        redirect_uri=redirect_uri
-    )
-    authed_user = response.get('authed_user')
-    access_token = authed_user.get('access_token')
+    try:
+        response = client.oauth_v2_access(
+            client_id=client_id,
+            client_secret=client_secret,
+            code=code,
+            redirect_uri=redirect_uri
+        )
+        logging.debug(f"OAuth response: {response}")
 
-    session['slack_user_token'] = access_token
+        authed_user = response.get('authed_user')
+        access_token = authed_user.get('access_token')
 
-    return "Installation successful!", 200
+        session['slack_user_token'] = access_token
+
+        return "Installation successful!", 200
+    except SlackApiError as e:
+        logging.error(f"Slack API Error: {e.response['error']}")
+        return f"Error: {e.response['error']}", 400
+    except Exception as e:
+        logging.error(f"Unexpected error: {str(e)}")
+        return f"Error: {str(e)}", 400
 
 @app.route('/slack/events', methods=['POST'])
 def slack_events():
@@ -93,14 +111,14 @@ def slack_events():
                         try:
                             user_client.chat_delete(channel=channel, ts=message['ts'])
                         except SlackApiError as e:
-                            print(f"Error deleting reply: {e.response['error']}")
+                            logging.error(f"Error deleting reply: {e.response['error']}")
                 
                 # Finally, delete the original message
                 user_client.chat_delete(channel=channel, ts=ts)
             except SlackApiError as e:
-                print(f"Error fetching replies or deleting message: {e.response['error']}")
+                logging.error(f"Error fetching replies or deleting message: {e.response['error']}")
             except Exception as e:
-                print(f"Unexpected error: {str(e)}")
+                logging.error(f"Unexpected error: {str(e)}")
     return '', 200
 
 if __name__ == '__main__':
