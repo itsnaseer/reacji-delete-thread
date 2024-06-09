@@ -90,6 +90,7 @@ def oauth_callback():
 
         # Store the user token in the in-memory store
         user_token_store[user_id] = access_token
+        logging.debug(f"Stored access token for user {user_id}")
 
         return "Installation successful!", 200
     except SlackApiError as e:
@@ -133,7 +134,7 @@ def slack_events():
             user_token = user_token_store.get(user_id)
 
             if not user_token:
-                logging.error("User token not found")
+                logging.error(f"User token not found for user {user_id}")
                 return "User token not found", 400
 
             user_client = WebClient(token=user_token)
