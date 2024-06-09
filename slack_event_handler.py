@@ -29,6 +29,9 @@ redirect_uri = os.getenv("SLACK_REDIRECT_URI")
 # Slack signing secret
 signing_secret = os.getenv("SLACK_SIGNING_SECRET")
 
+# In-memory store for user tokens
+user_token_store = {}
+
 # In-memory state store for OAuth
 class MemoryStateStore(OAuthStateStore):
     def __init__(self):
@@ -83,8 +86,10 @@ def oauth_callback():
 
         authed_user = response.get('authed_user')
         access_token = authed_user.get('access_token')
+        user_id = authed_user.get('id')
 
-        session['slack_user_token'] = access_token
+        # Store the user token in the in-memory store
+        user_token_store[user_id] = access_token
 
         return "Installation successful!", 200
     except SlackApiError as e:
@@ -120,10 +125,12 @@ def slack_events():
 
     if 'event' in data:
         event = data['event']
+        user_id = event.get('user')
         if event.get('type') == 'reaction_added' and event.get('reaction') == 'delete-thread':
             channel = event['item']['channel']
             ts = event['item']['ts']
-            user_token = session.get('slack_user_token')
+
+            user_token = user_token_store.get(user_id)
 
             if not user_token:
                 logging.error("User token not found")
