@@ -41,7 +41,7 @@ class MemoryStateStore(OAuthStateStore):
     def issue(self):
         state = str(uuid.uuid4())
         self.store[state] = time.time()
-        logging.debug(f"Issued state: {state}")
+        logging.debug(f"Issued state: {state}, store: {self.store}")
         return state
 
     def consume(self, state):
@@ -50,10 +50,10 @@ class MemoryStateStore(OAuthStateStore):
         
         if state_time and (current_time - state_time) <= self.expiration_time:
             del self.store[state]
-            logging.debug(f"Consumed state: {state}")
+            logging.debug(f"Consumed state: {state}, store: {self.store}")
             return True
         
-        logging.debug(f"State not found or expired: {state}")
+        logging.debug(f"State not found or expired: {state}, store: {self.store}")
         return False
 
 state_store = MemoryStateStore()
@@ -75,6 +75,8 @@ def install():
 def oauth_callback():
     code = request.args.get('code')
     state = request.args.get('state')
+
+    logging.debug(f"Received state: {state} for validation")
 
     if not state_store.consume(state):
         logging.error(f"Invalid state: {state}")
