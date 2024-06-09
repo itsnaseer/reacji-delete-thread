@@ -4,8 +4,11 @@ import logging
 from slack_sdk import WebClient
 from slack_sdk.oauth import AuthorizeUrlGenerator, OAuthStateStore
 from slack_sdk.errors import SlackApiError
-from flask import Flask, request, redirect, session, jsonify, url_for
+from flask import Flask, request, redirect, session, jsonify, url_for, abort
 from dotenv import load_dotenv
+import hmac
+import hashlib
+import time
 
 load_dotenv()
 
@@ -22,6 +25,9 @@ client_id = os.getenv("SLACK_CLIENT_ID")
 client_secret = os.getenv("SLACK_CLIENT_SECRET")
 scopes = ["channels:history", "channels:read", "chat:write", "reactions:read", "im:history", "im:read", "mpim:history", "mpim:read", "groups:history", "groups:read"]
 redirect_uri = os.getenv("SLACK_REDIRECT_URI")
+
+# Slack signing secret
+signing_secret = os.getenv("SLACK_SIGNING_SECRET")
 
 # In-memory state store for OAuth
 class MemoryStateStore(OAuthStateStore):
@@ -88,9 +94,30 @@ def oauth_callback():
         logging.error(f"Unexpected error: {str(e)}")
         return f"Error: {str(e)}", 400
 
+def verify_slack_request(request):
+    timestamp = request.headers.get('X-Slack-Request-Timestamp')
+    if abs(time.time() - int(timestamp)) > 60 * 5:
+        return False
+
+    sig_basestring = f'v0:{timestamp}:{request.get_data(as_text=True)}'
+    my_signature = 'v0=' + hmac.new(
+        signing_secret.encode('utf-8'),
+        sig_basestring.encode('utf-8'),
+        hashlib.sha256
+    ).hexdigest()
+
+    slack_signature = request.headers.get('X-Slack-Signature')
+    return hmac.compare_digest(my_signature, slack_signature)
+
 @app.route('/slack/events', methods=['POST'])
 def slack_events():
+    if not verify_slack_request(request):
+        logging.error("Request verification failed")
+        abort(400)
+
     data = request.json
+    logging.debug(f"Received event: {data}")
+
     if 'event' in data:
         event = data['event']
         if event.get('type') == 'reaction_added' and event.get('reaction') == 'delete-thread':
@@ -99,6 +126,7 @@ def slack_events():
             user_token = session.get('slack_user_token')
 
             if not user_token:
+                logging.error("User token not found")
                 return "User token not found", 400
 
             user_client = WebClient(token=user_token)
