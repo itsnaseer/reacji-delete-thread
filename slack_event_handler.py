@@ -149,11 +149,14 @@ def slack_events():
     if 'event' in data:
         event = data['event']
         user_id = event.get('user')
+        logging.debug(f"Handling event from user: {user_id}")
+
         if event.get('type') == 'reaction_added' and event.get('reaction') == 'delete-thread':
             channel = event['item']['channel']
             ts = event['item']['ts']
 
             user_token = user_token_store.get(user_id)
+            logging.debug(f"User token for {user_id}: {user_token}")
 
             if not user_token:
                 logging.error(f"User token not found for user {user_id}")
@@ -164,15 +167,18 @@ def slack_events():
             try:
                 # Fetch and delete all threaded replies
                 response = user_client.conversations_replies(channel=channel, ts=ts)
+                logging.debug(f"Fetched replies: {response['messages']}")
                 for message in response['messages']:
                     if message['ts'] != ts:
                         try:
                             user_client.chat_delete(channel=channel, ts=message['ts'])
+                            logging.debug(f"Deleted reply: {message['ts']}")
                         except SlackApiError as e:
                             logging.error(f"Error deleting reply: {e.response['error']}")
                 
                 # Finally, delete the original message
                 user_client.chat_delete(channel=channel, ts=ts)
+                logging.debug(f"Deleted original message: {ts}")
             except SlackApiError as e:
                 logging.error(f"Error fetching replies or deleting message: {e.response['error']}")
             except Exception as e:
