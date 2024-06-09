@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 import hmac
 import hashlib
 import time
+import json
 
 load_dotenv()
 
@@ -32,15 +33,28 @@ signing_secret = os.getenv("SLACK_SIGNING_SECRET")
 # In-memory store for user tokens
 user_token_store = {}
 
-# In-memory state store for OAuth
-class MemoryStateStore(OAuthStateStore):
-    def __init__(self):
-        self.store = {}
+# File-based state store for OAuth
+class FileStateStore(OAuthStateStore):
+    def __init__(self, file_path="state_store.json"):
+        self.file_path = file_path
         self.expiration_time = 60 * 5  # 5 minutes
+        self._load_store()
+
+    def _load_store(self):
+        if os.path.exists(self.file_path):
+            with open(self.file_path, 'r') as file:
+                self.store = json.load(file)
+        else:
+            self.store = {}
+
+    def _save_store(self):
+        with open(self.file_path, 'w') as file:
+            json.dump(self.store, file)
 
     def issue(self):
         state = str(uuid.uuid4())
         self.store[state] = time.time()
+        self._save_store()
         logging.debug(f"Issued state: {state}, store: {self.store}")
         return state
 
@@ -50,13 +64,14 @@ class MemoryStateStore(OAuthStateStore):
         
         if state_time and (current_time - state_time) <= self.expiration_time:
             del self.store[state]
+            self._save_store()
             logging.debug(f"Consumed state: {state}, store: {self.store}")
             return True
         
         logging.debug(f"State not found or expired: {state}, store: {self.store}")
         return False
 
-state_store = MemoryStateStore()
+state_store = FileStateStore()
 
 authorize_url_generator = AuthorizeUrlGenerator(client_id=client_id, scopes=scopes, redirect_uri=redirect_uri)
 
