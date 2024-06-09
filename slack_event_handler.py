@@ -36,19 +36,24 @@ user_token_store = {}
 class MemoryStateStore(OAuthStateStore):
     def __init__(self):
         self.store = {}
+        self.expiration_time = 60 * 5  # 5 minutes
 
     def issue(self):
         state = str(uuid.uuid4())
-        self.store[state] = True
+        self.store[state] = time.time()
         logging.debug(f"Issued state: {state}")
         return state
 
     def consume(self, state):
-        if state in self.store:
+        current_time = time.time()
+        state_time = self.store.get(state)
+        
+        if state_time and (current_time - state_time) <= self.expiration_time:
             del self.store[state]
             logging.debug(f"Consumed state: {state}")
             return True
-        logging.debug(f"State not found: {state}")
+        
+        logging.debug(f"State not found or expired: {state}")
         return False
 
 state_store = MemoryStateStore()
