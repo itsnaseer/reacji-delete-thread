@@ -30,7 +30,7 @@ redirect_uri = os.getenv("SLACK_REDIRECT_URI")
 # Slack signing secret
 signing_secret = os.getenv("SLACK_SIGNING_SECRET")
 
-# File-based store for user tokens
+# File-based store for app token
 class FileTokenStore:
     def __init__(self, file_path="token_store.json"):
         self.file_path = file_path
@@ -47,14 +47,14 @@ class FileTokenStore:
         with open(self.file_path, 'w') as file:
             json.dump(self.store, file)
 
-    def get(self, user_id):
-        return self.store.get(user_id)
+    def get(self):
+        return self.store.get("app_token")
 
-    def set(self, user_id, token):
-        self.store[user_id] = token
+    def set(self, token):
+        self.store["app_token"] = token
         self._save_store()
 
-user_token_store = FileTokenStore()
+app_token_store = FileTokenStore()
 
 # File-based state store for OAuth
 class FileStateStore(OAuthStateStore):
@@ -129,13 +129,11 @@ def oauth_callback():
         )
         logging.debug(f"OAuth response: {response}")
 
-        authed_user = response.get('authed_user')
-        access_token = authed_user.get('access_token')
-        user_id = authed_user.get('id')
+        app_token = response['access_token']
 
-        # Store the user token in the file-based store
-        user_token_store.set(user_id, access_token)
-        logging.debug(f"Stored access token for user {user_id} in file-based store")
+        # Store the app token in the file-based store
+        app_token_store.set(app_token)
+        logging.debug(f"Stored app token in file-based store")
 
         return "Installation successful!", 200
     except SlackApiError as e:
@@ -171,21 +169,20 @@ def slack_events():
 
     if 'event' in data:
         event = data['event']
-        user_id = event.get('user')
-        logging.debug(f"Handling event from user: {user_id}")
+        logging.debug(f"Handling event: {event}")
 
         if event.get('type') == 'reaction_added' and event.get('reaction') == 'delete-thread':
             channel = event['item']['channel']
             ts = event['item']['ts']
 
-            user_token = user_token_store.get(user_id)
-            logging.debug(f"User token for {user_id}: {user_token}")
+            app_token = app_token_store.get()
+            logging.debug(f"App token: {app_token}")
 
-            if not user_token:
-                logging.error(f"User token not found for user {user_id}")
-                return "User token not found", 400
+            if not app_token:
+                logging.error("App token not found")
+                return "App token not found", 400
 
-            user_client = WebClient(token=user_token)
+            user_client = WebClient(token=app_token)
 
             try:
                 # Fetch and delete all threaded replies
