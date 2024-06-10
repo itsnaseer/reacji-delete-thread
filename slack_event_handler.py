@@ -1,5 +1,5 @@
 import os
-import json    # importing json module
+import json  # Importing the json module
 import uuid
 import logging
 from slack_sdk import WebClient
@@ -137,11 +137,11 @@ def slack_events():
         abort(400)
 
     data = request.json
-    logging.debug(f"Received event: {data}")
+    logging.debug(f"Received event: {json.dumps(data, indent=4)}")
 
     if 'event' in data:
         event = data['event']
-        logging.debug(f"Handling event: {event}")
+        logging.debug(f"Handling event: {json.dumps(event, indent=4)}")
 
         if event.get('type') == 'reaction_added' and event.get('reaction') == 'delete-thread':
             channel = event['item']['channel']
