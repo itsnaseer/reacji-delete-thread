@@ -1,8 +1,6 @@
 import os
 import uuid
 import logging
-import psycopg2
-from psycopg2 import sql
 from slack_sdk import WebClient
 from slack_sdk.oauth import AuthorizeUrlGenerator, OAuthStateStore
 from slack_sdk.errors import SlackApiError
@@ -31,34 +29,12 @@ redirect_uri = os.getenv("SLACK_REDIRECT_URI")
 # Slack signing secret
 signing_secret = os.getenv("SLACK_SIGNING_SECRET")
 
-# Database configuration
-DATABASE_URL = os.getenv("DATABASE_URL")
+# Store the app token in Heroku Config Vars
+def get_app_token():
+    return os.getenv("SLACK_APP_TOKEN")
 
-# Database initialization
-conn = psycopg2.connect(DATABASE_URL)
-cursor = conn.cursor()
-
-# Create table if not exists
-cursor.execute("""
-    CREATE TABLE IF NOT EXISTS tokens (
-        id SERIAL PRIMARY KEY,
-        token_type VARCHAR(50) NOT NULL,
-        token_value TEXT NOT NULL
-    )
-""")
-conn.commit()
-
-# Function to get token from the database
-def get_token(token_type):
-    cursor.execute(sql.SQL("SELECT token_value FROM tokens WHERE token_type = %s"), [token_type])
-    result = cursor.fetchone()
-    return result[0] if result else None
-
-# Function to set token in the database
-def set_token(token_type, token_value):
-    cursor.execute(sql.SQL("DELETE FROM tokens WHERE token_type = %s"), [token_type])
-    cursor.execute(sql.SQL("INSERT INTO tokens (token_type, token_value) VALUES (%s, %s)"), [token_type, token_value])
-    conn.commit()
+def set_app_token(token):
+    os.environ["SLACK_APP_TOKEN"] = token
 
 # File-based state store for OAuth
 class FileStateStore(OAuthStateStore):
@@ -135,9 +111,9 @@ def oauth_callback():
 
         app_token = response['access_token']
 
-        # Store the app token in the database
-        set_token("app_token", app_token)
-        logging.debug(f"Stored app token in database: {app_token}")
+        # Store the app token in the environment variable
+        set_app_token(app_token)
+        logging.debug(f"Stored app token in environment variable")
 
         return "Installation successful!", 200
     except SlackApiError as e:
@@ -179,7 +155,7 @@ def slack_events():
             channel = event['item']['channel']
             ts = event['item']['ts']
 
-            app_token = get_token("app_token")
+            app_token = get_app_token()
             logging.debug(f"App token: {app_token}")
 
             if not app_token:
