@@ -1,3 +1,4 @@
 Flask
 slack_sdk
 python-dotenv
+psycopg2
