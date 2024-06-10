@@ -1,4 +1,5 @@
 import os
+import json    # importing json module
 import uuid
 import logging
 from slack_sdk import WebClient
