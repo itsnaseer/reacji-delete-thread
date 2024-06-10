@@ -30,8 +30,31 @@ redirect_uri = os.getenv("SLACK_REDIRECT_URI")
 # Slack signing secret
 signing_secret = os.getenv("SLACK_SIGNING_SECRET")
 
-# In-memory store for user tokens
-user_token_store = {}
+# File-based store for user tokens
+class FileTokenStore:
+    def __init__(self, file_path="token_store.json"):
+        self.file_path = file_path
+        self._load_store()
+
+    def _load_store(self):
+        if os.path.exists(self.file_path):
+            with open(self.file_path, 'r') as file:
+                self.store = json.load(file)
+        else:
+            self.store = {}
+
+    def _save_store(self):
+        with open(self.file_path, 'w') as file:
+            json.dump(self.store, file)
+
+    def get(self, user_id):
+        return self.store.get(user_id)
+
+    def set(self, user_id, token):
+        self.store[user_id] = token
+        self._save_store()
+
+user_token_store = FileTokenStore()
 
 # File-based state store for OAuth
 class FileStateStore(OAuthStateStore):
@@ -110,8 +133,8 @@ def oauth_callback():
         access_token = authed_user.get('access_token')
         user_id = authed_user.get('id')
 
-        # Store the user token in the in-memory store
-        user_token_store[user_id] = access_token
+        # Store the user token in the file-based store
+        user_token_store.set(user_id, access_token)
         logging.debug(f"Stored access token for user {user_id}")
 
         return "Installation successful!", 200
