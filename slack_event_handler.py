@@ -135,7 +135,7 @@ def oauth_callback():
 
         # Store the user token in the file-based store
         user_token_store.set(user_id, access_token)
-        logging.debug(f"Stored access token for user {user_id}")
+        logging.debug(f"Stored access token for user {user_id} in file-based store")
 
         return "Installation successful!", 200
     except SlackApiError as e:
