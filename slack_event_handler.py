@@ -32,7 +32,7 @@ signing_secret = os.getenv("SLACK_SIGNING_SECRET")
 class FileStateStore(OAuthStateStore):
     def __init__(self, file_path="state_store.json"):
         self.file_path = file_path
-        self.expiration_time = 60 * 10  # 10 minutes, increased expiration time
+        self.expiration_time = 60 * 60  # 60 minutes, increased expiration time
         self._load_store()
 
     def _load_store(self):
