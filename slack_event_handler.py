@@ -112,6 +112,7 @@ def oauth_callback():
     state = request.args.get('state')
     code = request.args.get('code')
 
+    logging.debug(f"Received state: {state} for validation")
     if state_store.consume(state):
         client_secret = os.getenv("SLACK_CLIENT_SECRET")
         redirect_uri = os.getenv("SLACK_REDIRECT_URI")
