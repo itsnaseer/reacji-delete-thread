@@ -36,17 +36,24 @@ class FileStateStore(OAuthStateStore):
         self._load_store()
 
     def _load_store(self):
-        if os.path.exists(self.file_path):
-            with open(self.file_path, 'r') as file:
-                self.store = json.load(file)
-        else:
+        try:
+            if os.path.exists(self.file_path):
+                with open(self.file_path, 'r') as file:
+                    self.store = json.load(file)
+            else:
+                self.store = {}
+            logging.debug(f"Loaded state store: {self.store}")
+        except Exception as e:
+            logging.error(f"Error loading state store: {e}")
             self.store = {}
-        logging.debug(f"Loaded state store: {self.store}")
 
     def _save_store(self):
-        with open(self.file_path, 'w') as file:
-            json.dump(self.store, file)
-        logging.debug(f"Saved state store: {self.store}")
+        try:
+            with open(self.file_path, 'w') as file:
+                json.dump(self.store, file)
+            logging.debug(f"Saved state store: {self.store}")
+        except Exception as e:
+            logging.error(f"Error saving state store: {e}")
 
     def issue(self):
         state = str(uuid.uuid4())
