@@ -73,8 +73,11 @@ state_store = FileStateStore()
 def home():
     return "Slack event handler is running.", 200
 
-@app.route('/slack/events', methods=['POST'])
+@app.route('/slack/events', methods=['POST', 'GET'])
 def slack_events():
+    if request.method == 'GET':
+        return "This endpoint expects a POST request.", 405
+    
     data = request.json
     logging.debug(f"Received event data: {data}")
     
