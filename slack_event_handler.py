@@ -1,11 +1,11 @@
 import os
-import json  # Importing the json module
+import json
 import uuid
 import logging
 from slack_sdk import WebClient
 from slack_sdk.oauth import AuthorizeUrlGenerator, OAuthStateStore
 from slack_sdk.errors import SlackApiError
-from flask import Flask, request, redirect, session, jsonify, url_for, abort
+from flask import Flask, request, redirect, jsonify, abort
 from dotenv import load_dotenv
 import hmac
 import hashlib
@@ -41,10 +41,12 @@ class FileStateStore(OAuthStateStore):
                 self.store = json.load(file)
         else:
             self.store = {}
+        logging.debug(f"Loaded state store: {self.store}")
 
     def _save_store(self):
         with open(self.file_path, 'w') as file:
             json.dump(self.store, file)
+        logging.debug(f"Saved state store: {self.store}")
 
     def issue(self):
         state = str(uuid.uuid4())
@@ -56,13 +58,13 @@ class FileStateStore(OAuthStateStore):
     def consume(self, state):
         current_time = time.time()
         state_time = self.store.get(state)
-        
+
         if state_time and (current_time - state_time) <= self.expiration_time:
             del self.store[state]
             self._save_store()
             logging.debug(f"Consumed state: {state}, store: {self.store}")
             return True
-        
+
         logging.debug(f"State not found or expired: {state}, store: {self.store}")
         return False
 
@@ -167,7 +169,7 @@ def slack_events():
                             logging.debug(f"Deleted reply: {message['ts']}")
                         except SlackApiError as e:
                             logging.error(f"Error deleting reply: {e.response['error']}")
-                
+
                 # Finally, delete the original message
                 client.chat_delete(channel=channel, ts=ts)
                 logging.debug(f"Deleted original message: {ts}")
