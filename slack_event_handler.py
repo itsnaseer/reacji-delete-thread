@@ -69,22 +69,33 @@ class FileStateStore(OAuthStateStore):
 
 state_store = FileStateStore()
 
+@app.route('/', methods=['GET'])
+def home():
+    return "Slack event handler is running.", 200
+
 @app.route('/slack/events', methods=['POST'])
 def slack_events():
     data = request.json
+    logging.debug(f"Received event data: {data}")
+    
     if 'event' in data:
         event = data['event']
+        logging.debug(f"Processing event: {event}")
+        
         if event.get('type') == 'reaction_added' and event.get('reaction') == 'delete-thread':
             channel = event['item']['channel']
             ts = event['item']['ts']
             try:
                 # Fetch and delete all threaded replies
                 response = client.conversations_replies(channel=channel, ts=ts)
+                logging.debug(f"Fetched replies: {response['messages']}")
+                
                 for message in response['messages']:
                     # Only delete replies, not the initial message
                     if message['ts'] != ts:
                         try:
                             client.chat_delete(channel=channel, ts=message['ts'])
+                            logging.debug(f"Deleted reply: {message['ts']}")
                         except SlackApiError as e:
                             logging.error(f"Error deleting reply: {e.response['error']}")
                 
@@ -95,6 +106,7 @@ def slack_events():
                 logging.error(f"Error fetching replies or deleting message: {e.response['error']}")
             except Exception as e:
                 logging.error(f"Unexpected error: {str(e)}")
+    
     return '', 200
 
 @app.route('/install', methods=['GET'])
