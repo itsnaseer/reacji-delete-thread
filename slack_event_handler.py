@@ -43,6 +43,7 @@ def install():
         f"state={state}&client_id={os.getenv('CLIENT_ID')}&scope=channels:history,channels:read,chat:write,reactions:read,im:history,im:read,mpim:history,mpim:read,groups:history,groups:read"
         f"&redirect_uri={os.getenv('REDIRECT_URI')}"
     )
+    print(f"Issued state: {state}, store: {state_store}")
     return redirect(oauth_url)
 
 @app.route('/oauth/callback', methods=['GET'])
@@ -50,7 +51,9 @@ def oauth_callback():
     state = request.args.get('state')
     code = request.args.get('code')
 
+    print(f"Received state: {state} for validation")
     if state not in state_store or time.time() - state_store[state] > 600:
+        print(f"State not found or expired: {state}, store: {state_store}")
         return 'Invalid or expired state', 400
 
     del state_store[state]
@@ -66,7 +69,7 @@ def oauth_callback():
         return f"Error: {response['error']}", 400
 
     os.environ["SLACK_USER_TOKEN"] = response['access_token']
-
+    print(f"OAuth response: {response}")
     return 'Installation successful!', 200
 
 @app.route('/slack/events', methods=['POST'])
