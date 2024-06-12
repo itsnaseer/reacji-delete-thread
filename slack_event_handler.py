@@ -52,9 +52,18 @@ def oauth_callback():
     code = request.args.get('code')
 
     print(f"Received state: {state} for validation")
-    if not state or state not in state_store or time.time() - state_store[state] > 600:
-        print(f"State not found or expired: {state}, store: {state_store}")
-        return 'Invalid or expired state', 400
+    if not state:
+        print(f"State is missing from the callback URL")
+        return 'Invalid state: missing', 400
+
+    if state not in state_store:
+        print(f"State not found in the store: {state}, store: {state_store}")
+        return 'Invalid state: not found', 400
+
+    if time.time() - state_store[state] > 600:
+        print(f"State expired: {state}, issued at {state_store[state]}")
+        del state_store[state]
+        return 'Invalid state: expired', 400
 
     del state_store[state]
 
