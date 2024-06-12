@@ -2,12 +2,11 @@ import os
 import time
 import hmac
 import hashlib
+import uuid
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
-from flask import Flask, request, jsonify, redirect
+from flask import Flask, request, jsonify, redirect, url_for
 from dotenv import load_dotenv
-import json
-import uuid
 
 # Load environment variables from .env file
 load_dotenv()
@@ -53,7 +52,7 @@ def oauth_callback():
 
     print(f"Received state: {state} for validation")
     if not state:
-        print(f"State is missing from the callback URL")
+        print("State is missing from the callback URL")
         return 'Invalid state: missing', 400
 
     if state not in state_store:
