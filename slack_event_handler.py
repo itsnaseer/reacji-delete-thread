@@ -13,7 +13,7 @@ import uuid
 load_dotenv()
 
 app = Flask(__name__)
-client = WebClient(token=os.getenv("SLACK_USER_TOKEN"))
+client = WebClient(token=os.getenv("SLACK_BOT_TOKEN"))
 signing_secret = os.getenv("SLACK_SIGNING_SECRET")
 
 # State store for OAuth process
@@ -77,7 +77,7 @@ def oauth_callback():
     if not response['ok']:
         return f"Error: {response['error']}", 400
 
-    os.environ["SLACK_USER_TOKEN"] = response['access_token']
+    os.environ["SLACK_BOT_TOKEN"] = response['access_token']
     print(f"OAuth response: {response}")
     return 'Installation successful!', 200
 
@@ -87,6 +87,7 @@ def slack_events():
         return 'Request verification failed', 400
 
     data = request.json
+    print(f"Received event: {data}")
     if 'event' in data:
         event = data['event']
         if event.get('type') == 'reaction_added' and event.get('reaction') == 'delete-thread':
