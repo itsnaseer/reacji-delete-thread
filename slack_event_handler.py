@@ -46,6 +46,7 @@ def slack_events():
         if event.get('type') == 'reaction_added' and event.get('reaction') == 'delete-thread':
             channel = event['item']['channel']
             ts = event['item']['ts']
+            app.logger.debug(f'Processing reaction in channel: {channel} at timestamp: {ts}')
             try:
                 # Fetch and delete all threaded replies
                 response = client.conversations_replies(channel=channel, ts=ts)
@@ -58,13 +59,13 @@ def slack_events():
                             app.logger.debug(f'Deleted reply: {message["ts"]}')
                         except SlackApiError as e:
                             app.logger.error(f'Error deleting reply: {e.response["error"]}')
+                            app.logger.debug(f'Error details: {e.response}')
 
                 # Finally, delete the original message
                 client.chat_delete(channel=channel, ts=ts)
                 app.logger.debug(f'Deleted original message: {ts}')
             except SlackApiError as e:
                 app.logger.error(f'Error fetching replies or deleting message: {e.response["error"]}')
-                # Log detailed error response from Slack
                 app.logger.debug(f'Error details: {e.response}')
             except Exception as e:
                 app.logger.error(f'Unexpected error: {str(e)}')
