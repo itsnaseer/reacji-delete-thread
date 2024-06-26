@@ -5,7 +5,7 @@ import hashlib
 import uuid
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
-from flask import Flask, request, redirect, session
+from flask import Flask, request, redirect, session, jsonify
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -15,9 +15,6 @@ app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "supersecretkey")
 client = WebClient(token=os.getenv("SLACK_USER_TOKEN"))  # Use user token for elevated permissions
 signing_secret = os.getenv("SLACK_SIGNING_SECRET")
-
-# State store for OAuth process
-state_store = {}
 
 def verify_slack_request(request):
     timestamp = request.headers.get('X-Slack-Request-Timestamp')
@@ -76,6 +73,7 @@ def slack_events():
 def install():
     state = str(uuid.uuid4())
     session['oauth_state'] = state
+    app.logger.debug(f'Storing state in session: {state}')
     oauth_url = f"https://slack.com/oauth/v2/authorize?state={state}&client_id={os.getenv('SLACK_CLIENT_ID')}&scope=channels:history,channels:read,chat:write,reactions:read,im:history,im:read,mpim:history,mpim:read,groups:history,groups:read,admin&user_scope=&redirect_uri={os.getenv('SLACK_REDIRECT_URI')}"
     app.logger.debug(f'Generated OAuth URL: {oauth_url}')
     return redirect(oauth_url)
@@ -85,12 +83,17 @@ def oauth_callback():
     state = request.args.get('state')
     code = request.args.get('code')
 
+    app.logger.debug(f'Received state: {state} and code: {code} for validation')
+
     if not state:
         app.logger.error('State is missing from the callback URL')
         return 'Invalid state: missing', 400
 
-    app.logger.debug(f'Received state: {state} for validation')
     saved_state = session.pop('oauth_state', None)
+    if saved_state is None:
+        app.logger.error('State is missing from the session')
+    app.logger.debug(f'Retrieved state from session: {saved_state}')
+
     if state != saved_state:
         app.logger.error(f'Invalid state: {state}')
         return 'Invalid state', 400
