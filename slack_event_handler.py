@@ -5,7 +5,7 @@ import hashlib
 import uuid
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
-from flask import Flask, request, jsonify, redirect, url_for
+from flask import Flask, request, jsonify, redirect
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -66,16 +66,22 @@ def oauth_callback():
 
     del state_store[state]
 
-    response = client.oauth_v2_access(
-        client_id=os.getenv('CLIENT_ID'),
-        client_secret=os.getenv('CLIENT_SECRET'),
-        redirect_uri=os.getenv('REDIRECT_URI'),
-        code=code
-    )
+    try:
+        response = client.oauth_v2_access(
+            client_id=os.getenv('CLIENT_ID'),
+            client_secret=os.getenv('CLIENT_SECRET'),
+            redirect_uri=os.getenv('REDIRECT_URI'),
+            code=code
+        )
+    except SlackApiError as e:
+        print(f"Slack API error: {e.response['error']}")
+        return f"Error: {e.response['error']}", 400
 
     if not response['ok']:
+        print(f"OAuth response error: {response['error']}")
         return f"Error: {response['error']}", 400
 
+    # Store the bot token in an environment variable
     os.environ["SLACK_BOT_TOKEN"] = response['access_token']
     print(f"OAuth response: {response}")
     return 'Installation successful!', 200
