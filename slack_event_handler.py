@@ -86,16 +86,16 @@ def oauth_callback():
     app.logger.debug(f'Received state: {state} and code: {code} for validation')
 
     if not state:
-        app.logger.error('State is missing from the callback URL')
+        app.logger.error(f'State is missing from the callback URL. Code: {code}')
         return 'Invalid state: missing', 400
 
     saved_state = session.pop('oauth_state', None)
     if saved_state is None:
-        app.logger.error('State is missing from the session')
+        app.logger.error(f'State is missing from the session. State received: {state}')
     app.logger.debug(f'Retrieved state from session: {saved_state}')
 
     if state != saved_state:
-        app.logger.error(f'Invalid state: {state}')
+        app.logger.error(f'Invalid state: {state}. Expected state: {saved_state}')
         return 'Invalid state', 400
 
     try:
