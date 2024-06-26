@@ -5,13 +5,14 @@ import hashlib
 import uuid
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
-from flask import Flask, request, redirect
+from flask import Flask, request, redirect, session
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv()
 
 app = Flask(__name__)
+app.secret_key = os.getenv("FLASK_SECRET_KEY", "supersecretkey")
 client = WebClient(token=os.getenv("SLACK_USER_TOKEN"))  # Use user token for elevated permissions
 signing_secret = os.getenv("SLACK_SIGNING_SECRET")
 
@@ -74,7 +75,7 @@ def slack_events():
 @app.route('/install', methods=['GET'])
 def install():
     state = str(uuid.uuid4())
-    state_store[state] = time.time()
+    session['oauth_state'] = state
     oauth_url = f"https://slack.com/oauth/v2/authorize?state={state}&client_id={os.getenv('SLACK_CLIENT_ID')}&scope=channels:history,channels:read,chat:write,reactions:read,im:history,im:read,mpim:history,mpim:read,groups:history,groups:read,admin&user_scope=&redirect_uri={os.getenv('SLACK_REDIRECT_URI')}"
     app.logger.debug(f'Generated OAuth URL: {oauth_url}')
     return redirect(oauth_url)
@@ -89,7 +90,8 @@ def oauth_callback():
         return 'Invalid state: missing', 400
 
     app.logger.debug(f'Received state: {state} for validation')
-    if state not in state_store:
+    saved_state = session.pop('oauth_state', None)
+    if state != saved_state:
         app.logger.error(f'Invalid state: {state}')
         return 'Invalid state', 400
 
