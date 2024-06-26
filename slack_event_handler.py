@@ -2,6 +2,7 @@ import os
 import time
 import hmac
 import hashlib
+import uuid
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 from flask import Flask, request, redirect
@@ -11,7 +12,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 app = Flask(__name__)
-client = WebClient(token=os.getenv("SLACK_BOT_TOKEN"))
+client = WebClient(token=os.getenv("SLACK_USER_TOKEN"))  # Use user token for elevated permissions
 signing_secret = os.getenv("SLACK_SIGNING_SECRET")
 
 # State store for OAuth process
@@ -63,6 +64,8 @@ def slack_events():
                 app.logger.debug(f'Deleted original message: {ts}')
             except SlackApiError as e:
                 app.logger.error(f'Error fetching replies or deleting message: {e.response["error"]}')
+                # Log detailed error response from Slack
+                app.logger.debug(f'Error details: {e.response}')
             except Exception as e:
                 app.logger.error(f'Unexpected error: {str(e)}')
     return '', 200
@@ -71,7 +74,7 @@ def slack_events():
 def install():
     state = str(uuid.uuid4())
     state_store[state] = time.time()
-    oauth_url = f"https://slack.com/oauth/v2/authorize?state={state}&client_id={os.getenv('SLACK_CLIENT_ID')}&scope=channels:history,channels:read,chat:write,reactions:read,im:history,im:read,mpim:history,mpim:read,groups:history,groups:read&user_scope=&redirect_uri={os.getenv('SLACK_REDIRECT_URI')}"
+    oauth_url = f"https://slack.com/oauth/v2/authorize?state={state}&client_id={os.getenv('SLACK_CLIENT_ID')}&scope=channels:history,channels:read,chat:write,reactions:read,im:history,im:read,mpim:history,mpim:read,groups:history,groups:read,admin&user_scope=&redirect_uri={os.getenv('SLACK_REDIRECT_URI')}"
     app.logger.debug(f'Generated OAuth URL: {oauth_url}')
     return redirect(oauth_url)
 
