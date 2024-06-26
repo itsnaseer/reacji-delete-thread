@@ -70,8 +70,9 @@ def install():
     app.logger.debug(f"Issued state: {state}, session: {session}")
 
     client_id = os.getenv("SLACK_CLIENT_ID")
-    redirect_uri = url_for('oauth_callback', _external=True)
-    scope = "channels:history,channels:read,chat:write,reactions:read,im:history,im:read,mpim:history,mpim:read,groups:history,groups:read"
+    redirect_uri = url_for('oauth_callback', _external=True, _scheme='https')
+    app.logger.debug(f"Redirect URI: {redirect_uri}")
+    scope = "channels:history,channels:read,chat:write,reactions:read,im:history,im:read,mpim:read,mpim:history,groups:history,groups:read"
     oauth_url = f"https://slack.com/oauth/v2/authorize?state={state}&client_id={client_id}&scope={scope}&redirect_uri={redirect_uri}"
 
     app.logger.debug(f"Generated OAuth URL: {oauth_url}")
@@ -96,7 +97,8 @@ def oauth_callback():
 
     client_id = os.getenv("SLACK_CLIENT_ID")
     client_secret = os.getenv("SLACK_CLIENT_SECRET")
-    redirect_uri = url_for('oauth_callback', _external=True)
+    redirect_uri = url_for('oauth_callback', _external=True, _scheme='https')
+    app.logger.debug(f"OAuth callback redirect URI: {redirect_uri}")
 
     try:
         response = client.oauth_v2_access(
