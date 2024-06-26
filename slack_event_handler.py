@@ -2,7 +2,6 @@ import os
 import time
 import hmac
 import hashlib
-import uuid
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 from flask import Flask, request, jsonify, redirect
@@ -86,6 +85,16 @@ def oauth_callback():
     print(f"OAuth response: {response}")
     return 'Installation successful!', 200
 
+def invite_bot_to_channel(channel_id):
+    try:
+        response = client.conversations_invite(
+            channel=channel_id,
+            users=[os.getenv("SLACK_BOT_USER_ID")]  # The bot's user ID
+        )
+        print(f"Bot invited to channel {channel_id}: {response}")
+    except SlackApiError as e:
+        print(f"Error inviting bot to channel {channel_id}: {e.response['error']}")
+
 @app.route('/slack/events', methods=['POST'])
 def slack_events():
     if not verify_slack_request(request):
@@ -112,7 +121,11 @@ def slack_events():
                 # Finally, delete the original message
                 client.chat_delete(channel=channel, ts=ts)
             except SlackApiError as e:
-                print(f"Error fetching replies or deleting message: {e.response['error']}")
+                if e.response['error'] == 'not_in_channel':
+                    print(f"Bot not in channel {channel}. Attempting to invite.")
+                    invite_bot_to_channel(channel)
+                else:
+                    print(f"Error fetching replies or deleting message: {e.response['error']}")
             except Exception as e:
                 print(f"Unexpected error: {str(e)}")
     return '', 200
