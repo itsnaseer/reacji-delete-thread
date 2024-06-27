@@ -3,6 +3,7 @@ import time
 import hmac
 import hashlib
 import json
+import psycopg2
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 from flask import Flask, request, jsonify, redirect, url_for, session
@@ -34,23 +35,32 @@ app.secret_key = os.getenv("FLASK_SECRET_KEY")
 client_id = os.getenv("SLACK_CLIENT_ID")
 client_secret = os.getenv("SLACK_CLIENT_SECRET")
 signing_secret = os.getenv("SLACK_SIGNING_SECRET")
-tokens = {}
+database_url = os.getenv("DATABASE_URL")
 
-def save_tokens(tokens):
-    with open('tokens.json', 'w') as file:
-        json.dump(tokens, file)
+# Initialize PostgreSQL database connection
+conn = psycopg2.connect(database_url)
+cursor = conn.cursor()
+cursor.execute('''
+    CREATE TABLE IF NOT EXISTS tokens (
+        team_id TEXT PRIMARY KEY,
+        access_token TEXT NOT NULL
+    )
+''')
+conn.commit()
 
-def load_tokens():
-    global tokens
-    try:
-        with open('tokens.json', 'r') as file:
-            tokens = json.load(file)
-            app.logger.debug(f"Loaded tokens: {tokens}")
-    except FileNotFoundError:
-        tokens = {}
-        app.logger.debug("No tokens file found, starting with an empty tokens dictionary")
+def save_token(team_id, token):
+    cursor.execute('''
+        INSERT OR REPLACE INTO tokens (team_id, access_token)
+        VALUES (%s, %s)
+    ''', (team_id, token))
+    conn.commit()
 
-load_tokens()
+def get_token(team_id):
+    cursor.execute('''
+        SELECT access_token FROM tokens WHERE team_id = %s
+    ''', (team_id,))
+    row = cursor.fetchone()
+    return row[0] if row else None
 
 def verify_slack_request(request):
     timestamp = request.headers.get('X-Slack-Request-Timestamp')
@@ -81,7 +91,7 @@ def slack_events():
             channel = event['item']['channel']
             ts = event['item']['ts']
             team_id = data['team_id']
-            token = tokens.get(team_id)
+            token = get_token(team_id)
 
             if not token:
                 app.logger.error(f"Token not found for team {team_id}")
@@ -152,8 +162,8 @@ def oauth_callback():
 
         if response.get("ok"):
             team_id = response["team"]["id"]
-            tokens[team_id] = response["access_token"]
-            save_tokens(tokens)
+            token = response["access_token"]
+            save_token(team_id, token)
             app.logger.info(f"OAuth flow completed successfully for team {team_id}")
         else:
             app.logger.error(f"OAuth failed: {response['error']}")
