@@ -2,42 +2,52 @@ import os
 import time
 import hmac
 import hashlib
-import uuid
+import json
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
-from flask import Flask, request, redirect, session, jsonify, url_for
+from flask import Flask, request, jsonify, redirect, url_for, session
 from dotenv import load_dotenv
-import json
+from logging.config import dictConfig
+
+# Configure logging
+dictConfig({
+    'version': 1,
+    'formatters': {'default': {
+        'format': '[%(asctime)s] %(levelname)s in %(module)s: %(message)s',
+    }},
+    'handlers': {'wsgi': {
+        'class': 'logging.StreamHandler',
+        'stream': 'ext://flask.logging.wsgi_errors_stream',
+        'formatter': 'default'
+    }},
+    'root': {
+        'level': 'DEBUG',
+        'handlers': ['wsgi']
+    }
+})
 
 # Load environment variables from .env file
 load_dotenv()
 
 app = Flask(__name__)
-app.secret_key = os.getenv("FLASK_SECRET_KEY", "supersecretkey")
+app.secret_key = os.getenv("FLASK_SECRET_KEY")
+client = WebClient(token=os.getenv("SLACK_USER_TOKEN"))
 signing_secret = os.getenv("SLACK_SIGNING_SECRET")
+tokens = {}
 
-# Function to load tokens from a JSON file
-def load_tokens():
-    try:
-        with open('tokens.json', 'r') as file:
-            return json.load(file)
-    except FileNotFoundError:
-        return {}
-
-# Function to save tokens to a JSON file
 def save_tokens(tokens):
     with open('tokens.json', 'w') as file:
         json.dump(tokens, file)
 
-tokens = load_tokens()
+def load_tokens():
+    global tokens
+    try:
+        with open('tokens.json', 'r') as file:
+            tokens = json.load(file)
+    except FileNotFoundError:
+        tokens = {}
 
-def get_client_for_team(team_id):
-    token = tokens.get(team_id)
-    if token:
-        return WebClient(token=token)
-    else:
-        app.logger.error(f"No token found for team {team_id}")
-        return None
+load_tokens()
 
 def verify_slack_request(request):
     timestamp = request.headers.get('X-Slack-Request-Timestamp')
@@ -57,66 +67,55 @@ def verify_slack_request(request):
 @app.route('/slack/events', methods=['POST'])
 def slack_events():
     if not verify_slack_request(request):
-        app.logger.error('Request verification failed')
         return 'Request verification failed', 400
 
     data = request.json
-    app.logger.debug(f"Received event: {data}")
-
-    team_id = data.get('team_id')
-    client = get_client_for_team(team_id)
-    if not client:
-        return 'Client not found', 400
-
     if 'event' in data:
         event = data['event']
-        app.logger.debug(f"Handling event: {event}")
         if event.get('type') == 'reaction_added' and event.get('reaction') == 'delete-thread':
             channel = event['item']['channel']
             ts = event['item']['ts']
-            app.logger.debug(f"Reaction added event in channel: {channel} at timestamp: {ts}")
+            team_id = data['team_id']
+            token = tokens.get(team_id)
 
+            if not token:
+                app.logger.error(f"Token not found for team {team_id}")
+                return 'Token not found', 400
+
+            client = WebClient(token=token)
+            
             try:
                 # Fetch and delete all threaded replies
                 response = client.conversations_replies(channel=channel, ts=ts)
-                app.logger.debug(f"Conversations replies response: {response}")
                 for message in response['messages']:
                     # Only delete replies, not the initial message
                     if message['ts'] != ts:
                         try:
                             client.chat_delete(channel=channel, ts=message['ts'])
-                            app.logger.debug(f"Deleted reply message with timestamp: {message['ts']}")
                         except SlackApiError as e:
                             app.logger.error(f"Error deleting reply: {e.response['error']}")
-
+                
                 # Finally, delete the original message
                 client.chat_delete(channel=channel, ts=ts)
-                app.logger.debug(f"Deleted original message with timestamp: {ts}")
             except SlackApiError as e:
                 app.logger.error(f"Error fetching replies or deleting message: {e.response['error']}")
             except Exception as e:
                 app.logger.error(f"Unexpected error: {str(e)}")
-
     return '', 200
 
 @app.route('/install', methods=['GET'])
 def install():
-    state = str(uuid.uuid4())
+    state = os.urandom(24).hex()
     session['state'] = state
-    app.logger.debug(f"Issued state: {state}, session: {session}")
+    app.logger.debug(f"Issued state: {state}")
 
     client_id = os.getenv("SLACK_CLIENT_ID")
+    scope = "reactions:read,channels:history,channels:read,chat:write,im:history,im:read,mpim:read,mpim:history,groups:history,groups:read"
     redirect_uri = url_for('oauth_callback', _external=True, _scheme='https')
 
-    auth_url = (
-        "https://slack.com/oauth/v2/authorize?"
-        f"client_id={client_id}&"
-        "scope=channels:history,channels:read,chat:write,reactions:read,im:history,im:read,mpim:read,mpim:history,groups:history,groups:read&"
-        f"state={state}&"
-        f"redirect_uri={redirect_uri}"
-    )
-    app.logger.debug(f"Generated OAuth URL: {auth_url}")
-    return redirect(auth_url)
+    url = f"https://slack.com/oauth/v2/authorize?state={state}&client_id={client_id}&scope={scope}&redirect_uri={redirect_uri}"
+    app.logger.debug(f"Generated OAuth URL: {url}")
+    return redirect(url)
 
 @app.route('/oauth/callback', methods=['GET'])
 def oauth_callback():
@@ -134,11 +133,17 @@ def oauth_callback():
     session.pop('state', None)
 
     code = request.args.get('code')
+    
+    client_id = os.getenv("SLACK_CLIENT_ID")
+    client_secret = os.getenv("SLACK_CLIENT_SECRET")
+    redirect_uri = url_for('oauth_callback', _external=True, _scheme='https')
+    
     try:
+        client = WebClient()  # Initialize the WebClient here
         response = client.oauth_v2_access(
-            client_id=os.getenv("SLACK_CLIENT_ID"),
-            client_secret=os.getenv("SLACK_CLIENT_SECRET"),
-            redirect_uri=url_for('oauth_callback', _external=True, _scheme='https'),
+            client_id=client_id,
+            client_secret=client_secret,
+            redirect_uri=redirect_uri,
             code=code
         )
         app.logger.debug(f"OAuth response: {response}")
@@ -159,4 +164,4 @@ def oauth_callback():
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 3000))
-    app.run(debug=True, host='0.0.0.0', port=port)
+    app.run(debug=False, host='0.0.0.0', port=port)
