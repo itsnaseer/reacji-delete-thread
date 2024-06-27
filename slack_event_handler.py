@@ -45,8 +45,10 @@ def load_tokens():
     try:
         with open('tokens.json', 'r') as file:
             tokens = json.load(file)
+            app.logger.debug(f"Loaded tokens: {tokens}")
     except FileNotFoundError:
         tokens = {}
+        app.logger.debug("No tokens file found, starting with an empty tokens dictionary")
 
 load_tokens()
 
@@ -71,6 +73,8 @@ def slack_events():
         return 'Request verification failed', 400
 
     data = request.json
+    app.logger.debug(f"Received event: {data}")
+
     if 'event' in data:
         event = data['event']
         if event.get('type') == 'reaction_added' and event.get('reaction') == 'delete-thread':
