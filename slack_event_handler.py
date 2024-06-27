@@ -31,7 +31,8 @@ load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY")
-client = WebClient(token=os.getenv("SLACK_USER_TOKEN"))
+client_id = os.getenv("SLACK_CLIENT_ID")
+client_secret = os.getenv("SLACK_CLIENT_SECRET")
 signing_secret = os.getenv("SLACK_SIGNING_SECRET")
 tokens = {}
 
@@ -109,7 +110,6 @@ def install():
     session['state'] = state
     app.logger.debug(f"Issued state: {state}")
 
-    client_id = os.getenv("SLACK_CLIENT_ID")
     scope = "reactions:read,channels:history,channels:read,chat:write,im:history,im:read,mpim:read,mpim:history,groups:history,groups:read"
     redirect_uri = url_for('oauth_callback', _external=True, _scheme='https')
 
@@ -134,13 +134,11 @@ def oauth_callback():
 
     code = request.args.get('code')
     
-    client_id = os.getenv("SLACK_CLIENT_ID")
-    client_secret = os.getenv("SLACK_CLIENT_SECRET")
     redirect_uri = url_for('oauth_callback', _external=True, _scheme='https')
     
     try:
-        client = WebClient()  # Initialize the WebClient here
-        response = client.oauth_v2_access(
+        oauth_client = WebClient()  # Initialize a new WebClient for OAuth
+        response = oauth_client.oauth_v2_access(
             client_id=client_id,
             client_secret=client_secret,
             redirect_uri=redirect_uri,
