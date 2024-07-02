@@ -36,10 +36,13 @@ def verify_slack_request(request):
 def install():
     state = str(uuid.uuid4())
     state_store[state] = time.time()
+    scopes = os.getenv('SLACK_SCOPES')
+    if not scopes:
+        scopes = 'channels:history,channels:read,chat:write,reactions:read,im:history,im:read,mpim:read,mpim:history,groups:history,groups:read'
     slack_url = (
         "https://slack.com/oauth/v2/authorize"
         f"?client_id={os.getenv('SLACK_CLIENT_ID')}"
-        f"&scope={os.getenv('SLACK_SCOPES')}"
+        f"&scope={scopes}"
         f"&state={state}"
         f"&redirect_uri={os.getenv('REDIRECT_URI')}"
     )
