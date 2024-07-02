@@ -107,7 +107,7 @@ def slack_events():
 
             # Retrieve the token from the database
             conn = engine.connect()
-            result = conn.execute(select([tokens_table.c.access_token]).where(tokens_table.c.team_id == team_id))
+            result = conn.execute(select(tokens_table.c.access_token).where(tokens_table.c.team_id == team_id))
             token = result.scalar()
             conn.close()
 
