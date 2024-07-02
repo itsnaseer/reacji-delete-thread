@@ -92,41 +92,48 @@ def oauth_callback():
         return "OAuth flow failed", 400
 
 # Event handler for Slack events
-@app.route('/slack/events', methods=['POST'])
+@app.route("/slack/events", methods=["POST"])
 def slack_events():
-    event_data = request.get_json()
-    team_id = event_data['team_id']
-    event = event_data['event']
+    event_data = request.json
 
-    # Ensure the event is a reaction added event with the specified reaction
-    if event['type'] == 'reaction_added' and event['reaction'] == 'delete-thread':
-        user_id = event['user']
-        channel_id = event['item']['channel']
-        message_ts = event['item']['ts']
+    # Check if the event is a reaction_added event with the correct reaction
+    if "event" in event_data and event_data["event"]["type"] == "reaction_added":
+        event = event_data["event"]
+        if event["reaction"] == "delete-thread":
+            team_id = event_data["team_id"]
+            item = event["item"]
+            channel_id = item["channel"]
+            message_ts = item["ts"]
 
-        # Fetch the correct token from the database
-        with engine.connect() as conn:
-            result = conn.execute(select(tokens_table.c.access_token).where(tokens_table.c.team_id == team_id)).fetchone()
-            if result:
-                access_token = result[0]
+            # Retrieve the token from the database
+            conn = engine.connect()
+            result = conn.execute(select([tokens_table.c.access_token]).where(tokens_table.c.team_id == team_id))
+            token = result.scalar()
+            conn.close()
 
-                # Initialize the WebClient with the access token
-                client = WebClient(token=access_token)
+            if not token:
+                app.logger.error(f"Token not found for team_id: {team_id}")
+                return jsonify({"error": "Token not found"}), 400
 
-                try:
-                    # Fetch replies to the message
-                    response = client.conversations_replies(channel=channel_id, ts=message_ts)
-                    thread_ts = response['messages'][0]['thread_ts']
+            app.logger.debug(f"Using token: {token} for team_id: {team_id}")
 
-                    # Delete the thread if it exists
-                    if thread_ts:
-                        client.chat_delete(channel=channel_id, ts=thread_ts)
-                        return jsonify({'status': 'success', 'message': 'Thread deleted'}), 200
-                except SlackApiError as e:
-                    print(f"Error fetching replies or deleting message: {e.response['error']}")
-                    return jsonify({'status': 'error', 'message': 'Error fetching replies or deleting message'}), 500
+            # Form the API call to delete the message
+            delete_url = "https://slack.com/api/chat.delete"
+            headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+            payload = {"channel": channel_id, "ts": message_ts}
 
-    return jsonify({'status': 'ignored', 'message': 'Event type or reaction not handled'}), 200
+            response = requests.post(delete_url, headers=headers, json=payload)
+            response_data = response.json()
+
+            if not response_data["ok"]:
+                app.logger.error(f"Error deleting message: {response_data['error']}")
+                return jsonify({"error": response_data["error"]}), 400
+
+            app.logger.debug(f"Message deleted: {response_data}")
+
+            return jsonify({"status": "Message deleted"}), 200
+
+    return jsonify({"status": "Event received"}), 200
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 3000))
