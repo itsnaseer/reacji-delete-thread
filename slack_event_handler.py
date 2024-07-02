@@ -18,6 +18,36 @@ def get_token(team_id):
     else:
         return None
 
+
+@app.route('/oauth/callback', methods=['GET'])
+def oauth_callback():
+    state = request.args.get('state')
+    if not state:
+        app.logger.error('State is missing from the callback URL')
+        return 'State is missing from the callback URL', 400
+    if state not in state_store:
+        app.logger.error(f'Invalid state: {state}')
+        return 'Invalid state', 400
+    state_store.pop(state)
+    code = request.args.get('code')
+    if not code:
+        app.logger.error('Code is missing from the callback URL')
+        return 'Code is missing from the callback URL', 400
+    try:
+        response = client.oauth_v2_access(
+            client_id=os.getenv("SLACK_CLIENT_ID"),
+            client_secret=os.getenv("SLACK_CLIENT_SECRET"),
+            code=code,
+            redirect_uri=os.getenv("REDIRECT_URI")
+        )
+        # Store the access token and other details in your database
+        app.logger.debug(f'OAuth response: {response}')
+        return 'OAuth callback successful', 200
+    except SlackApiError as e:
+        app.logger.error(f'Error during OAuth: {e.response["error"]}')
+        return f'Error during OAuth: {e.response["error"]}', 500
+
+
 @app.route('/slack/events', methods=['POST'])
 def slack_events():
     # verify slack request
