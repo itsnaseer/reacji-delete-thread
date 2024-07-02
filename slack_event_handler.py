@@ -79,6 +79,8 @@ def oauth_callback():
         team_id = response['team']['id']
         user_id = response['authed_user']['id']
         access_token = response['access_token']
+        app.logger.info(f"Storing token for team_id: {team_id}, user_id: {user_id}")
+
         with engine.connect() as conn:
             conn.execute(tokens_table.insert().values(
                 team_id=team_id,
@@ -87,16 +89,18 @@ def oauth_callback():
                 created_at=str(time.time()),
                 updated_at=str(time.time())
             ))
+        app.logger.info("Token stored successfully")
         return "OAuth flow completed", 200
     else:
+        app.logger.error(f"OAuth flow failed: {response}")
         return "OAuth flow failed", 400
 
 # Event handler for Slack events
 @app.route("/slack/events", methods=["POST"])
 def slack_events():
     event_data = request.json
+    app.logger.debug(f"Event Data: {event_data}")
 
-    # Check if the event is a reaction_added event with the correct reaction
     if "event" in event_data and event_data["event"]["type"] == "reaction_added":
         event = event_data["event"]
         if event["reaction"] == "delete-thread":
@@ -107,7 +111,8 @@ def slack_events():
 
             # Retrieve the token from the database
             conn = engine.connect()
-            result = conn.execute(select(tokens_table.c.access_token).where(tokens_table.c.team_id == team_id))
+            app.logger.debug(f"Querying token for team_id: {team_id}")
+            result = conn.execute(select([tokens_table.c.access_token]).where(tokens_table.c.team_id == team_id))
             token = result.scalar()
             conn.close()
 
