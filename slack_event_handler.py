@@ -76,20 +76,23 @@ def oauth_callback():
     )
 
     if response['ok']:
+        app.logger.debug(f"OAuth response: {response}")
         team_id = response['team']['id']
         user_id = response['authed_user']['id']
         access_token = response['access_token']
-        app.logger.info(f"Storing token for team_id: {team_id}, user_id: {user_id}")
-
-        with engine.connect() as conn:
-            conn.execute(tokens_table.insert().values(
-                team_id=team_id,
-                user_id=user_id,
-                access_token=access_token,
-                created_at=str(time.time()),
-                updated_at=str(time.time())
-            ))
-        app.logger.info("Token stored successfully")
+        try:
+            with engine.connect() as conn:
+                conn.execute(tokens_table.insert().values(
+                    team_id=team_id,
+                    user_id=user_id,
+                    access_token=access_token,
+                    created_at=str(time.time()),
+                    updated_at=str(time.time())
+                ))
+            app.logger.info(f"Token stored successfully for team_id: {team_id}")
+        except Exception as e:
+            app.logger.error(f"Error storing token: {e}")
+            return "Failed to store token", 500
         return "OAuth flow completed", 200
     else:
         app.logger.error(f"OAuth flow failed: {response}")
