@@ -5,7 +5,7 @@ import hmac
 import hashlib
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
-from flask import Flask, request, jsonify, redirect, url_for
+from flask import Flask, request, jsonify, redirect
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -51,6 +51,8 @@ def install():
 def oauth_callback():
     state = request.args.get('state')
     code = request.args.get('code')
+
+    app.logger.debug(f"Received callback with state: {state} and code: {code}")
 
     if not state:
         app.logger.error("State is missing from the callback URL")
