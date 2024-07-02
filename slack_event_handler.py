@@ -9,6 +9,7 @@ from slack_sdk.errors import SlackApiError
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, Table, Column, String, MetaData, select
 
+
 # Load environment variables from .env file
 load_dotenv()
 
@@ -90,42 +91,42 @@ def oauth_callback():
     else:
         return "OAuth flow failed", 400
 
+# Event handler for Slack events
 @app.route('/slack/events', methods=['POST'])
 def slack_events():
-    if not verify_slack_request(request):
-        return 'Request verification failed', 400
+    event_data = request.get_json()
+    team_id = event_data['team_id']
+    event = event_data['event']
 
-    data = request.json
-    if 'event' in data:
-        event = data['event']
-        if event.get('type') == 'reaction_added' and event.get('reaction') == 'delete-thread':
-            channel = event['item']['channel']
-            ts = event['item']['ts']
-            team_id = data['team_id']
+    # Ensure the event is a reaction added event with the specified reaction
+    if event['type'] == 'reaction_added' and event['reaction'] == 'delete-thread':
+        user_id = event['user']
+        channel_id = event['item']['channel']
+        message_ts = event['item']['ts']
 
-            with engine.connect() as conn:
-                result = conn.execute(select([tokens_table.c.access_token]).where(tokens_table.c.team_id == team_id))
-                row = result.fetchone()
-                if row:
-                    token = row['access_token']
-                    local_client = WebClient(token=token)
-                    try:
-                        response = local_client.conversations_replies(channel=channel, ts=ts)
-                        for message in response['messages']:
-                            if message['ts'] != ts:
-                                try:
-                                    local_client.chat_delete(channel=channel, ts=message['ts'])
-                                except SlackApiError as e:
-                                    app.logger.error(f"Error deleting reply: {e.response['error']}")
-                        local_client.chat_delete(channel=channel, ts=ts)
-                    except SlackApiError as e:
-                        app.logger.error(f"Error fetching replies or deleting message: {e.response['error']}")
-                    except Exception as e:
-                        app.logger.error(f"Unexpected error: {str(e)}")
-                else:
-                    app.logger.error(f"Token not found for team {team_id}")
+        # Fetch the correct token from the database
+        with engine.connect() as conn:
+            result = conn.execute(select(tokens_table.c.access_token).where(tokens_table.c.team_id == team_id)).fetchone()
+            if result:
+                access_token = result[0]
 
-    return '', 200
+                # Initialize the WebClient with the access token
+                client = WebClient(token=access_token)
+
+                try:
+                    # Fetch replies to the message
+                    response = client.conversations_replies(channel=channel_id, ts=message_ts)
+                    thread_ts = response['messages'][0]['thread_ts']
+
+                    # Delete the thread if it exists
+                    if thread_ts:
+                        client.chat_delete(channel=channel_id, ts=thread_ts)
+                        return jsonify({'status': 'success', 'message': 'Thread deleted'}), 200
+                except SlackApiError as e:
+                    print(f"Error fetching replies or deleting message: {e.response['error']}")
+                    return jsonify({'status': 'error', 'message': 'Error fetching replies or deleting message'}), 500
+
+    return jsonify({'status': 'ignored', 'message': 'Event type or reaction not handled'}), 200
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 3000))
