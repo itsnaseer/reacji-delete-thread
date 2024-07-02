@@ -5,7 +5,7 @@ import hmac
 import hashlib
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
-from flask import Flask, request, jsonify, redirect
+from flask import Flask, request, jsonify, redirect, url_for
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -36,13 +36,16 @@ def install():
     state = str(uuid.uuid4())
     state_store[state] = time.time()
     scopes = os.getenv('SLACK_SCOPES', 'channels:history,channels:read,chat:write,reactions:read,im:history,im:read,mpim:read,mpim:history,groups:history,groups:read')
+    redirect_uri = os.getenv('REDIRECT_URI')
+    client_id = os.getenv('SLACK_CLIENT_ID')
+
     slack_url = (
-        "https://slack.com/oauth/v2/authorize"
-        f"?client_id={os.getenv('SLACK_CLIENT_ID')}"
+        f"https://slack.com/oauth/v2/authorize?client_id={client_id}"
         f"&scope={scopes}"
         f"&state={state}"
-        f"&redirect_uri={os.getenv('REDIRECT_URI')}"
+        f"&redirect_uri={redirect_uri}"
     )
+    
     app.logger.debug(f"Issued state: {state}, store: {state_store}")
     app.logger.debug(f"Generated OAuth URL: {slack_url}")
     return redirect(slack_url)
@@ -98,6 +101,7 @@ def slack_events():
         if event.get('type') == 'reaction_added' and event.get('reaction') == 'delete-thread':
             channel = event['item']['channel']
             ts = event['item']['ts']
+            app.logger.debug(f"Channel: {channel}, Timestamp: {ts}")
             try:
                 # Fetch and delete all threaded replies
                 response = client.conversations_replies(channel=channel, ts=ts)
