@@ -2,6 +2,7 @@ import os
 import time
 import hmac
 import hashlib
+import uuid
 import json
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
