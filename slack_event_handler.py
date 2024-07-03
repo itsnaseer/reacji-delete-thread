@@ -84,7 +84,10 @@ def oauth_callback():
 
             with engine.connect() as conn:
                 # Check if the user_id already exists
-                result = conn.execute(select([tokens_table.c.user_id]).where(tokens_table.c.user_id == user_id)).fetchone()
+                result = conn.execute(
+                    select([tokens_table.c.user_id]).where(tokens_table.c.user_id == user_id)
+                ).fetchone()
+                
                 if result:
                     # Update existing entry
                     conn.execute(
