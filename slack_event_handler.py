@@ -68,12 +68,16 @@ def oauth_callback():
         app.logger.error("State is missing or invalid from the callback URL")
         return "State is missing or invalid from the callback URL", 400
 
-    response = client.oauth_v2_access(
-        client_id=os.getenv("SLACK_CLIENT_ID"),
-        client_secret=os.getenv("SLACK_CLIENT_SECRET"),
-        code=code,
-        redirect_uri=os.getenv("REDIRECT_URI")
-    )
+    try:
+        response = client.oauth_v2_access(
+            client_id=os.getenv("SLACK_CLIENT_ID"),
+            client_secret=os.getenv("SLACK_CLIENT_SECRET"),
+            code=code,
+            redirect_uri=os.getenv("REDIRECT_URI")
+        )
+    except Exception as e:
+        app.logger.error(f"Error during OAuth request: {e}")
+        return "OAuth flow failed during request", 500
 
     if response['ok']:
         app.logger.debug(f"OAuth response: {response}")
@@ -82,14 +86,15 @@ def oauth_callback():
         access_token = response['access_token']
         try:
             with engine.connect() as conn:
-                conn.execute(tokens_table.insert().values(
+                insert_query = tokens_table.insert().values(
                     team_id=team_id,
                     user_id=user_id,
                     access_token=access_token,
                     created_at=str(time.time()),
                     updated_at=str(time.time())
-                ))
-            app.logger.info(f"Token stored successfully for team_id: {team_id}")
+                )
+                result = conn.execute(insert_query)
+                app.logger.info(f"Token stored successfully for team_id: {team_id}, result: {result.rowcount}")
         except Exception as e:
             app.logger.error(f"Error storing token: {e}")
             return "Failed to store token", 500
