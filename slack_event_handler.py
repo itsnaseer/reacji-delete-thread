@@ -141,14 +141,17 @@ def slack_events():
             message_ts = item["ts"]
 
             # Retrieve the token from the database
+            conn = engine.connect()
+            app.logger.debug(f"Querying token for team_id: {team_id}")
             try:
-                with engine.connect() as conn:
-                    app.logger.debug(f"Querying token for team_id: {team_id}")
-                    result = conn.execute(select([tokens_table.c.access_token]).where(tokens_table.c.team_id == team_id))
-                    token = result.scalar()
+                result = conn.execute(select([tokens_table.c.access_token]).where(tokens_table.c.team_id == team_id))
+                token = result.scalar()
             except Exception as e:
                 app.logger.error(f"Error querying token: {e}")
+                conn.close()
                 return jsonify({"error": "Error querying token"}), 500
+
+            conn.close()
 
             if not token:
                 app.logger.error(f"Token not found for team_id: {team_id}")
