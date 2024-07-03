@@ -26,11 +26,11 @@ engine = create_engine(DATABASE_URL)
 metadata = MetaData()
 
 tokens_table = Table('tokens', metadata,
-    Column('team_id', String),
-    Column('user_id', String, primary_key=True),
-    Column('access_token', String),
-    Column('created_at', String),
-    Column('updated_at', String)
+    Column('team_id', String, nullable=False),
+    Column('user_id', String, primary_key=True, nullable=False),
+    Column('access_token', String, nullable=False),
+    Column('created_at', String, nullable=False),
+    Column('updated_at', String, nullable=False)
 )
 
 metadata.create_all(engine)
