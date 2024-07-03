@@ -11,7 +11,6 @@ from dotenv import load_dotenv
 from sqlalchemy import create_engine, Table, Column, String, MetaData, select, update, insert, literal
 from sqlalchemy.exc import SQLAlchemyError
 
-
 # Load environment variables from .env file
 load_dotenv()
 
@@ -19,7 +18,7 @@ load_dotenv()
 app = Flask(__name__)
 
 # Slack client initialization
-client = WebClient(token=os.getenv("SLACK_USER_TOKEN"))
+client = WebClient(token=os.getenv("SLACK_BOT_TOKEN"))  # Bot token used for OAuth flow
 signing_secret = os.getenv("SLACK_SIGNING_SECRET")
 
 # Database configuration
@@ -81,7 +80,7 @@ def oauth_callback():
     if response['ok']:
         team_id = response['team']['id']
         user_id = response['authed_user']['id']
-        access_token = response['access_token']
+        access_token = response['authed_user']['access_token']  # Use user access token
         created_at = str(time.time())
         updated_at = created_at
 
