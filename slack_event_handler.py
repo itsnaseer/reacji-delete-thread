@@ -82,12 +82,12 @@ def oauth_callback():
     if response['ok']:
         team_id = response['team']['id']
         user_id = response['authed_user']['id']
-        access_token = response['access_token']  # Corrected to get top-level access token
+        access_token = response['authed_user'].get('access_token')  # Ensure we use the user access token
         created_at = str(time.time())
         updated_at = created_at
 
         if not access_token:
-            app.logger.error("Access token not found in OAuth response")
+            app.logger.error("User access token not found in OAuth response")
             return "OAuth flow failed", 500
 
         with engine.connect() as conn:
@@ -105,6 +105,7 @@ def oauth_callback():
                 trans.commit()
                 app.logger.info(f"Successfully inserted token for team {team_id}, user {user_id}")
             except Exception as insert_error:
+                app.logger.info(f"Error during insert: {insert_error}")
                 if 'duplicate key value violates unique constraint' in str(insert_error):
                     trans.rollback()
                     # If a unique constraint violation occurs, update the existing token
