@@ -88,12 +88,13 @@ def oauth_callback():
             created_at=str(time.time()),
             updated_at=str(time.time())
         )
-        
+
         app.logger.info(f"Inserting with statement: {insert_statement}")
 
         try:
             with engine.connect() as conn:
                 conn.execute(insert_statement)
+                conn.commit()  # Ensure the transaction is committed
             app.logger.info(f"Successfully stored token for team {team_id}, user {user_id}")
             return "OAuth flow completed", 200
         except Exception as e:
@@ -118,11 +119,14 @@ def slack_events():
             message_ts = item["ts"]
 
             # Retrieve the token from the database
-            conn = engine.connect()
-            app.logger.debug(f"Querying token for team_id: {team_id}")
-            result = conn.execute(select(tokens_table.c.access_token).where(tokens_table.c.team_id == team_id))
-            token = result.scalar()
-            conn.close()
+            try:
+                with engine.connect() as conn:
+                    app.logger.debug(f"Querying token for team_id: {team_id}")
+                    result = conn.execute(select(tokens_table.c.access_token).where(tokens_table.c.team_id == team_id))
+                    token = result.scalar()
+            except Exception as e:
+                app.logger.error(f"Error querying token: {e}")
+                return jsonify({"error": "Error querying token"}), 500
 
             if not token:
                 app.logger.error(f"Token not found for team_id: {team_id}")
