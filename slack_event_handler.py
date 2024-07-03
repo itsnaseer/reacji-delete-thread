@@ -97,7 +97,7 @@ def oauth_callback():
                         .values(
                             team_id=team_id,
                             access_token=access_token,
-                            updated_at=str(time.time())
+                            updated_at=literal("CURRENT_TIMESTAMP")
                         )
                     )
                     conn.execute(update_stmt)
