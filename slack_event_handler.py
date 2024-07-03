@@ -18,7 +18,7 @@ load_dotenv()
 app = Flask(__name__)
 
 # Slack client initialization
-client = WebClient(token=os.getenv("SLACK_BOT_TOKEN"))  # Bot token used for OAuth flow
+client = WebClient(token=os.getenv("SLACK_CLIENT_ID"))  # Bot token used for OAuth flow
 signing_secret = os.getenv("SLACK_SIGNING_SECRET")
 
 # Database configuration
@@ -77,12 +77,18 @@ def oauth_callback():
         redirect_uri=os.getenv("REDIRECT_URI")
     )
 
+    app.logger.info(f"OAuth response: {response}")
+
     if response['ok']:
         team_id = response['team']['id']
         user_id = response['authed_user']['id']
-        access_token = response['authed_user']['access_token']  # Use user access token
+        access_token = response['authed_user']['access_token']  # Use get() to avoid KeyError
         created_at = str(time.time())
         updated_at = created_at
+
+        if not access_token:
+            app.logger.error("Access token not found in OAuth response")
+            return "OAuth flow failed", 500
 
         with engine.connect() as conn:
             app.logger.info(f"Inserting/updating token for team {team_id}, user {user_id}, access_token: {access_token}")
