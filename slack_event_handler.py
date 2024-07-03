@@ -7,7 +7,7 @@ from flask import Flask, request, jsonify, redirect
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 from dotenv import load_dotenv
-from sqlalchemy import create_engine, Table, Column, String, MetaData, select
+from sqlalchemy import create_engine, Table, Column, String, MetaData, select, update, insert
 
 
 # Load environment variables from .env file
