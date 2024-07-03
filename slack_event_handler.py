@@ -26,8 +26,8 @@ engine = create_engine(DATABASE_URL)
 metadata = MetaData()
 
 tokens_table = Table('tokens', metadata,
-    Column('team_id', String, primary_key=True),
-    Column('user_id', String),
+    Column('team_id', String),
+    Column('user_id', String, primary_key=True),
     Column('access_token', String),
     Column('created_at', String),
     Column('updated_at', String)
@@ -83,14 +83,27 @@ def oauth_callback():
         
         try:
             with engine.connect() as conn:
-                result = conn.execute(tokens_table.insert().values(
-                    team_id=team_id,
-                    user_id=user_id,
-                    access_token=access_token,
-                    created_at=str(time.time()),
-                    updated_at=str(time.time())
-                ))
-                app.logger.info(f"Token stored for team {team_id}, user {user_id}, result: {result.rowcount}")
+                # Check if the user_id already exists
+                result = conn.execute(select([tokens_table.c.user_id]).where(tokens_table.c.user_id == user_id)).fetchone()
+                if result:
+                    # Update existing entry
+                    conn.execute(tokens_table.update().where(tokens_table.c.user_id == user_id).values(
+                        team_id=team_id,
+                        access_token=access_token,
+                        updated_at=str(time.time())
+                    ))
+                    app.logger.info(f"Token updated for user {user_id}")
+                else:
+                    # Insert new entry
+                    conn.execute(tokens_table.insert().values(
+                        team_id=team_id,
+                        user_id=user_id,
+                        access_token=access_token,
+                        created_at=str(time.time()),
+                        updated_at=str(time.time())
+                    ))
+                    app.logger.info(f"Token stored for user {user_id}")
+                    
         except Exception as e:
             app.logger.error(f"Error storing token: {e}")
             return "Failed to store token", 500
