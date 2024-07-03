@@ -172,21 +172,32 @@ def slack_events():
 
             app.logger.debug(f"Using token: {token} for team_id: {team_id}")
 
-            # Form the API call to delete the message
-            delete_url = "https://slack.com/api/chat.delete"
             headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
-            payload = {"channel": channel_id, "ts": message_ts}
 
-            response = requests.post(delete_url, headers=headers, json=payload)
-            response_data = response.json()
+            # Get threaded messages
+            replies_url = "https://slack.com/api/conversations.replies"
+            replies_payload = {"channel": channel_id, "ts": message_ts}
+            replies_response = requests.get(replies_url, headers=headers, params=replies_payload)
+            replies_data = replies_response.json()
 
-            if not response_data["ok"]:
-                app.logger.error(f"Error deleting message: {response_data['error']}")
-                return jsonify({"error": response_data["error"]}), 400
+            if not replies_data["ok"]:
+                app.logger.error(f"Error retrieving threaded messages: {replies_data['error']}")
+                return jsonify({"error": replies_data["error"]}), 400
 
-            app.logger.debug(f"Message deleted: {response_data}")
+            # Delete threaded messages from newest to oldest
+            for reply in sorted(replies_data["messages"], key=lambda x: x["ts"], reverse=True):
+                delete_url = "https://slack.com/api/chat.delete"
+                delete_payload = {"channel": channel_id, "ts": reply["ts"]}
+                delete_response = requests.post(delete_url, headers=headers, json=delete_payload)
+                delete_response_data = delete_response.json()
 
-            return jsonify({"status": "Message deleted"}), 200
+                if not delete_response_data["ok"]:
+                    app.logger.error(f"Error deleting message: {delete_response_data['error']}")
+                    return jsonify({"error": delete_response_data["error"]}), 400
+
+                app.logger.debug(f"Deleted message: {delete_response_data}")
+
+            return jsonify({"status": "Message and thread deleted"}), 200
 
     return jsonify({"status": "Event received"}), 200
 
