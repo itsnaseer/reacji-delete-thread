@@ -87,21 +87,27 @@ def oauth_callback():
                 result = conn.execute(select([tokens_table.c.user_id]).where(tokens_table.c.user_id == user_id)).fetchone()
                 if result:
                     # Update existing entry
-                    conn.execute(tokens_table.update().where(tokens_table.c.user_id == user_id).values(
-                        team_id=team_id,
-                        access_token=access_token,
-                        updated_at=str(time.time())
-                    ))
+                    conn.execute(
+                        tokens_table.update()
+                        .where(tokens_table.c.user_id == user_id)
+                        .values(
+                            team_id=team_id,
+                            access_token=access_token,
+                            updated_at=str(time.time())
+                        )
+                    )
                     app.logger.info(f"Token updated for user {user_id}")
                 else:
                     # Insert new entry
-                    conn.execute(tokens_table.insert().values(
-                        team_id=team_id,
-                        user_id=user_id,
-                        access_token=access_token,
-                        created_at=str(time.time()),
-                        updated_at=str(time.time())
-                    ))
+                    conn.execute(
+                        tokens_table.insert().values(
+                            team_id=team_id,
+                            user_id=user_id,
+                            access_token=access_token,
+                            created_at=str(time.time()),
+                            updated_at=str(time.time())
+                        )
+                    )
                     app.logger.info(f"Token stored for user {user_id}")
 
             app.logger.info("OAuth flow completed successfully")
