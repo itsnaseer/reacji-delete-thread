@@ -82,7 +82,7 @@ def oauth_callback():
     if response['ok']:
         team_id = response['team']['id']
         user_id = response['authed_user']['id']
-        access_token = response['authed_user']['access_token']  # Use get() to avoid KeyError
+        access_token = response['access_token']  # Corrected to get top-level access token
         created_at = str(time.time())
         updated_at = created_at
 
