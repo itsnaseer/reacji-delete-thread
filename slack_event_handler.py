@@ -2,12 +2,14 @@ import os
 import time
 import hmac
 import hashlib
+import requests
 import uuid
 from flask import Flask, request, jsonify, redirect
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, Table, Column, String, MetaData, select, update, insert, literal
+from sqlalchemy.exc import SQLAlchemyError
 
 
 # Load environment variables from .env file
