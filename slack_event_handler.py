@@ -104,7 +104,7 @@ def oauth_callback():
                     conn.execute(update_stmt)
                     app.logger.info(f"Token updated for user {user_id}")
                 else:
-                    # Prepare the insert command
+                    # Insert new entry
                     insert_stmt = (
                         tokens_table.insert().values(
                             team_id=team_id,
