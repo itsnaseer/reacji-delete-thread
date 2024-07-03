@@ -69,68 +69,38 @@ def oauth_callback():
         app.logger.error("State is missing or invalid from the callback URL")
         return "State is missing or invalid from the callback URL", 400
 
-    try:
-        response = client.oauth_v2_access(
-            client_id=os.getenv("SLACK_CLIENT_ID"),
-            client_secret=os.getenv("SLACK_CLIENT_SECRET"),
-            code=code,
-            redirect_uri=os.getenv("REDIRECT_URI")
+    response = client.oauth_v2_access(
+        client_id=os.getenv("SLACK_CLIENT_ID"),
+        client_secret=os.getenv("SLACK_CLIENT_SECRET"),
+        code=code,
+        redirect_uri=os.getenv("REDIRECT_URI")
+    )
+
+    if response['ok']:
+        team_id = response['team']['id']
+        user_id = response['authed_user']['id']
+        access_token = response['access_token']
+
+        insert_statement = tokens_table.insert().values(
+            team_id=team_id,
+            user_id=user_id,
+            access_token=access_token,
+            created_at=str(time.time()),
+            updated_at=str(time.time())
         )
+        
+        app.logger.info(f"Inserting with statement: {insert_statement}")
 
-        if response['ok']:
-            team_id = response['team']['id']
-            user_id = response['authed_user']['id']
-            access_token = response['access_token']
-            current_time = str(time.time())
-            app.logger.info(f"Received token for team {team_id}, user {user_id}, access_token: {access_token}")
-
+        try:
             with engine.connect() as conn:
-                # Check if the user_id already exists
-                result = conn.execute(
-                    select([tokens_table.c.user_id]).where(tokens_table.c.user_id == user_id)
-                ).fetchone()
-
-                if result:
-                    # Update existing entry
-                    update_stmt = (
-                        update(tokens_table)
-                        .where(tokens_table.c.user_id == user_id)
-                        .values(
-                            team_id=team_id,
-                            access_token=access_token,
-                            updated_at=current_time
-                        )
-                    )
-                    conn.execute(update_stmt)
-                    app.logger.info(f"Token updated for user {user_id}")
-                else:
-                    # Insert new entry
-                    insert_stmt = (
-                        tokens_table.insert().values(
-                            team_id=team_id,
-                            user_id=user_id,
-                            access_token=access_token,
-                            created_at=current_time,
-                            updated_at=current_time
-                        )
-                    )
-
-                    # Output the complete insert command for debugging
-                    app.logger.debug(f"Insert statement: {str(insert_stmt.compile(engine, compile_kwargs={'literal_binds': True}))}")
-
-                    # Execute the insert command
-                    conn.execute(insert_stmt)
-                    app.logger.info(f"Token stored for user {user_id}")
-
-            app.logger.info("OAuth flow completed successfully")
+                conn.execute(insert_statement)
+            app.logger.info(f"Successfully stored token for team {team_id}, user {user_id}")
             return "OAuth flow completed", 200
-        else:
-            app.logger.error("OAuth flow failed with response: %s", response)
-            return "OAuth flow failed", 400
-
-    except Exception as e:
-        app.logger.error(f"Error during OAuth callback: {e}")
-        return "Failed to complete OAuth flow", 500
+        except Exception as e:
+            app.logger.error(f"Error during OAuth callback: {e}")
+            return "OAuth flow failed", 500
+    else:
+        return "OAuth flow failed", 400
 
 
 # Event handler for Slack events
