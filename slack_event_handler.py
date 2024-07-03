@@ -131,8 +131,6 @@ def oauth_callback():
         app.logger.error(f"Error during OAuth callback: {e}")
         return "Failed to complete OAuth flow", 500
 
-if __name__ == "__main__":
-    app.run(debug=True)
 
 # Event handler for Slack events
 @app.route("/slack/events", methods=["POST"])
@@ -181,4 +179,4 @@ def slack_events():
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 3000))
-    app.run(debug=False, host='0.0.0.0', port=port)
+    app.run(debug=True, host='0.0.0.0', port=port)
