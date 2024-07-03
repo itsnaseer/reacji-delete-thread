@@ -57,10 +57,13 @@ def verify_slack_request(request):
 def install():
     state = str(uuid.uuid4())
     store[state] = time.time()  # store the state with a timestamp
-    oauth_url = f"https://slack.com/oauth/v2/authorize?client_id={os.getenv('SLACK_CLIENT_ID')}&scope={os.getenv('SLACK_SCOPES')}&state={state}&redirect_uri={os.getenv('REDIRECT_URI')}"
+    scopes = "channels:history,channels:read,chat:write,reactions:read,chat:write.public,emoji:read,users:read,chat:write.customize,im:history,mpim:history,groups:history,im:read,mpim:read,groups:read,users:read.email"
+    user_scopes = "users:read,users:read.email"
+    oauth_url = f"https://slack.com/oauth/v2/authorize?client_id={os.getenv('SLACK_CLIENT_ID')}&scope={scopes}&user_scope={user_scopes}&state={state}&redirect_uri={os.getenv('REDIRECT_URI')}"
     return redirect(oauth_url)
 
 # OAUTH Callback - check for and update or store tokens
+
 @app.route('/oauth/callback', methods=['GET'])
 def oauth_callback():
     state = request.args.get('state')
@@ -82,12 +85,14 @@ def oauth_callback():
     if response['ok']:
         team_id = response['team']['id']
         user_id = response['authed_user']['id']
-        access_token = response['authed_user'].get('access_token')  # Ensure we use the user access token
+        access_token = response['authed_user'].get('access_token')  # Use user access token if available
+        if not access_token:
+            access_token = response.get('access_token')  # Fallback to bot access token
         created_at = str(time.time())
         updated_at = created_at
 
         if not access_token:
-            app.logger.error("User access token not found in OAuth response")
+            app.logger.error("Access token not found in OAuth response")
             return "OAuth flow failed", 500
 
         with engine.connect() as conn:
