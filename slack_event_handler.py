@@ -80,11 +80,11 @@ def oauth_callback():
         user_id = response['authed_user']['id']
         access_token = response['access_token']
         app.logger.info(f"Received token for team {team_id}, user {user_id}, access_token: {access_token}")
-        
+
         try:
             with engine.connect() as conn:
                 # Check if the user_id already exists
-                result = conn.execute(select([tokens_table.c.user_id]).where(tokens_table.c.user_id == user_id)).fetchone()
+                result = conn.execute(select(tokens_table.c.user_id).where(tokens_table.c.user_id == user_id)).fetchone()
                 if result:
                     # Update existing entry
                     conn.execute(tokens_table.update().where(tokens_table.c.user_id == user_id).values(
@@ -103,11 +103,11 @@ def oauth_callback():
                         updated_at=str(time.time())
                     ))
                     app.logger.info(f"Token stored for user {user_id}")
-                    
+
         except Exception as e:
             app.logger.error(f"Error storing token: {e}")
             return "Failed to store token", 500
-        
+
         return "OAuth flow completed", 200
     else:
         app.logger.error("OAuth flow failed")
