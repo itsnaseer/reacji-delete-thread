@@ -80,27 +80,38 @@ def oauth_callback():
         team_id = response['team']['id']
         user_id = response['authed_user']['id']
         access_token = response['access_token']
+        created_at = str(time.time())
+        updated_at = created_at
 
-        insert_statement = tokens_table.insert().values(
-            team_id=team_id,
-            user_id=user_id,
-            access_token=access_token,
-            created_at=str(time.time()),
-            updated_at=str(time.time())
-        )
+        with engine.connect() as conn:
+            app.logger.info(f"Inserting/updating token for team {team_id}, user {user_id}, access_token: {access_token}")
+            try:
+                # Try to insert the new token
+                conn.execute(tokens_table.insert().values(
+                    team_id=team_id,
+                    user_id=user_id,
+                    access_token=access_token,
+                    created_at=created_at,
+                    updated_at=updated_at
+                ))
+                app.logger.info(f"Successfully inserted token for team {team_id}, user {user_id}")
+            except Exception as insert_error:
+                if 'duplicate key value violates unique constraint' in str(insert_error):
+                    # If a unique constraint violation occurs, update the existing token
+                    app.logger.info(f"Token for user {user_id} already exists, updating instead.")
+                    conn.execute(tokens_table.update().values(
+                        team_id=team_id,
+                        access_token=access_token,
+                        updated_at=updated_at
+                    ).where(tokens_table.c.user_id == user_id))
+                    app.logger.info(f"Successfully updated token for team {team_id}, user {user_id}")
+                else:
+                    app.logger.error(f"Error inserting/updating token: {insert_error}")
+                    return "OAuth flow failed", 500
 
-        app.logger.info(f"Inserting with statement: {insert_statement}")
-
-        try:
-            with engine.connect() as conn:
-                conn.execute(insert_statement)
-                conn.commit()  # Ensure the transaction is committed
-            app.logger.info(f"Successfully stored token for team {team_id}, user {user_id}")
-            return "OAuth flow completed", 200
-        except Exception as e:
-            app.logger.error(f"Error during OAuth callback: {e}")
-            return "OAuth flow failed", 500
+        return "OAuth flow completed", 200
     else:
+        app.logger.error(f"OAuth response error: {response}")
         return "OAuth flow failed", 400
 
 
