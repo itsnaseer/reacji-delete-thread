@@ -81,6 +81,7 @@ def oauth_callback():
             team_id = response['team']['id']
             user_id = response['authed_user']['id']
             access_token = response['access_token']
+            current_time = str(time.time())
             app.logger.info(f"Received token for team {team_id}, user {user_id}, access_token: {access_token}")
 
             with engine.connect() as conn:
@@ -97,7 +98,7 @@ def oauth_callback():
                         .values(
                             team_id=team_id,
                             access_token=access_token,
-                            updated_at=literal("CURRENT_TIMESTAMP")
+                            updated_at=current_time
                         )
                     )
                     conn.execute(update_stmt)
@@ -109,8 +110,8 @@ def oauth_callback():
                             team_id=team_id,
                             user_id=user_id,
                             access_token=access_token,
-                            created_at=literal("CURRENT_TIMESTAMP"),
-                            updated_at=literal("CURRENT_TIMESTAMP")
+                            created_at=current_time,
+                            updated_at=current_time
                         )
                     )
 
