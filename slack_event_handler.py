@@ -79,18 +79,18 @@ def oauth_callback():
         team_id = response['team']['id']
         user_id = response['authed_user']['id']
         access_token = response['access_token']
-        app.logger.info(f"Received token for team {team_id}, user {user_id}")
+        app.logger.info(f"Received token for team {team_id}, user {user_id}, access_token: {access_token}")
         
         try:
             with engine.connect() as conn:
-                conn.execute(tokens_table.insert().values(
+                result = conn.execute(tokens_table.insert().values(
                     team_id=team_id,
                     user_id=user_id,
                     access_token=access_token,
                     created_at=str(time.time()),
                     updated_at=str(time.time())
                 ))
-            app.logger.info(f"Token stored for team {team_id}")
+                app.logger.info(f"Token stored for team {team_id}, user {user_id}, result: {result.rowcount}")
         except Exception as e:
             app.logger.error(f"Error storing token: {e}")
             return "Failed to store token", 500
