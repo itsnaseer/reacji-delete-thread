@@ -125,7 +125,6 @@ def oauth_callback():
         app.logger.error(f"OAuth response error: {response}")
         return "OAuth flow failed", 400
 
-
 # Event handler for Slack events
 @app.route("/slack/events", methods=["POST"])
 def slack_events():
@@ -144,7 +143,7 @@ def slack_events():
             conn = engine.connect()
             app.logger.debug(f"Querying token for team_id: {team_id}")
             try:
-                stmt = sqlalchemy.select([tokens_table.c.access_token]).where(tokens_table.c.team_id == team_id)
+                stmt = select([tokens_table.c.access_token]).where(tokens_table.c.team_id == team_id)
                 result = conn.execute(stmt)
                 token = result.scalar()
             except Exception as e:
