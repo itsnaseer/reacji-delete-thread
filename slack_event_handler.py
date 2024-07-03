@@ -3,6 +3,7 @@ import time
 import hmac
 import hashlib
 import uuid
+import requests
 from flask import Flask, request, jsonify, redirect
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
