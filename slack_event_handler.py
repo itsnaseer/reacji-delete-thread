@@ -68,23 +68,23 @@ def oauth_callback():
         app.logger.error("State is missing or invalid from the callback URL")
         return "State is missing or invalid from the callback URL", 400
 
-    response = client.oauth_v2_access(
-        client_id=os.getenv("SLACK_CLIENT_ID"),
-        client_secret=os.getenv("SLACK_CLIENT_SECRET"),
-        code=code,
-        redirect_uri=os.getenv("REDIRECT_URI")
-    )
+    try:
+        response = client.oauth_v2_access(
+            client_id=os.getenv("SLACK_CLIENT_ID"),
+            client_secret=os.getenv("SLACK_CLIENT_SECRET"),
+            code=code,
+            redirect_uri=os.getenv("REDIRECT_URI")
+        )
 
-    if response['ok']:
-        team_id = response['team']['id']
-        user_id = response['authed_user']['id']
-        access_token = response['access_token']
-        app.logger.info(f"Received token for team {team_id}, user {user_id}, access_token: {access_token}")
+        if response['ok']:
+            team_id = response['team']['id']
+            user_id = response['authed_user']['id']
+            access_token = response['access_token']
+            app.logger.info(f"Received token for team {team_id}, user {user_id}, access_token: {access_token}")
 
-        try:
             with engine.connect() as conn:
                 # Check if the user_id already exists
-                result = conn.execute(select(tokens_table.c.user_id).where(tokens_table.c.user_id == user_id)).fetchone()
+                result = conn.execute(select([tokens_table.c.user_id]).where(tokens_table.c.user_id == user_id)).fetchone()
                 if result:
                     # Update existing entry
                     conn.execute(tokens_table.update().where(tokens_table.c.user_id == user_id).values(
@@ -104,14 +104,15 @@ def oauth_callback():
                     ))
                     app.logger.info(f"Token stored for user {user_id}")
 
-        except Exception as e:
-            app.logger.error(f"Error storing token: {e}")
-            return "Failed to store token", 500
+            app.logger.info("OAuth flow completed successfully")
+            return "OAuth flow completed", 200
+        else:
+            app.logger.error("OAuth flow failed with response: %s", response)
+            return "OAuth flow failed", 400
 
-        return "OAuth flow completed", 200
-    else:
-        app.logger.error("OAuth flow failed")
-        return "OAuth flow failed", 400
+    except Exception as e:
+        app.logger.error(f"Error during OAuth callback: {e}")
+        return "Failed to complete OAuth flow", 500
 
 # Event handler for Slack events
 @app.route("/slack/events", methods=["POST"])
