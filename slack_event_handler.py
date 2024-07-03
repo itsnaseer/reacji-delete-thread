@@ -145,7 +145,7 @@ def slack_events():
             conn = engine.connect()
             app.logger.debug(f"Querying token for team_id: {team_id}")
             try:
-                stmt = select([tokens_table.c.access_token]).where(tokens_table.c.team_id == team_id)
+                stmt = select(tokens_table.c.access_token).where(tokens_table.c.team_id == team_id)
                 result = conn.execute(stmt)
                 token = result.scalar()
             except Exception as e:
