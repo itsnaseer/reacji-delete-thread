@@ -59,7 +59,7 @@ def install():
     oauth_url = f"https://slack.com/oauth/v2/authorize?client_id={os.getenv('SLACK_CLIENT_ID')}&scope={os.getenv('SLACK_SCOPES')}&state={state}&redirect_uri={os.getenv('REDIRECT_URI')}"
     return redirect(oauth_url)
 
-
+# OAUTH Callback - check for and update or store tokens
 @app.route('/oauth/callback', methods=['GET'])
 def oauth_callback():
     state = request.args.get('state')
@@ -85,6 +85,7 @@ def oauth_callback():
 
         with engine.connect() as conn:
             app.logger.info(f"Inserting/updating token for team {team_id}, user {user_id}, access_token: {access_token}")
+            trans = conn.begin()
             try:
                 # Try to insert the new token
                 conn.execute(tokens_table.insert().values(
@@ -94,19 +95,29 @@ def oauth_callback():
                     created_at=created_at,
                     updated_at=updated_at
                 ))
+                trans.commit()
                 app.logger.info(f"Successfully inserted token for team {team_id}, user {user_id}")
             except Exception as insert_error:
                 if 'duplicate key value violates unique constraint' in str(insert_error):
+                    trans.rollback()
                     # If a unique constraint violation occurs, update the existing token
                     app.logger.info(f"Token for user {user_id} already exists, updating instead.")
-                    conn.execute(tokens_table.update().values(
-                        team_id=team_id,
-                        access_token=access_token,
-                        updated_at=updated_at
-                    ).where(tokens_table.c.user_id == user_id))
-                    app.logger.info(f"Successfully updated token for team {team_id}, user {user_id}")
+                    trans = conn.begin()
+                    try:
+                        conn.execute(tokens_table.update().values(
+                            team_id=team_id,
+                            access_token=access_token,
+                            updated_at=updated_at
+                        ).where(tokens_table.c.user_id == user_id))
+                        trans.commit()
+                        app.logger.info(f"Successfully updated token for team {team_id}, user {user_id}")
+                    except Exception as update_error:
+                        trans.rollback()
+                        app.logger.error(f"Error updating token: {update_error}")
+                        return "OAuth flow failed", 500
                 else:
-                    app.logger.error(f"Error inserting/updating token: {insert_error}")
+                    trans.rollback()
+                    app.logger.error(f"Error inserting token: {insert_error}")
                     return "OAuth flow failed", 500
 
         return "OAuth flow completed", 200
