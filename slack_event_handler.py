@@ -1,15 +1,30 @@
-import requests
-from flask import Flask, request, jsonify
-from sqlalchemy import create_engine, Table, Column, String, MetaData, select
+import os
+import time
+import hmac
+import hashlib
+import uuid
+from flask import Flask, request, jsonify, redirect
+from slack_sdk import WebClient
+from slack_sdk.errors import SlackApiError
+from dotenv import load_dotenv
+from sqlalchemy import create_engine, Table, Column, String, MetaData, select, update, insert, literal
 
+
+# Load environment variables from .env file
+load_dotenv()
+
+# Initialize Flask app
 app = Flask(__name__)
-DATABASE_URL = os.getenv('DATABASE_URL')
 
-# Initialize database connection
+# Slack client initialization
+client = WebClient(token=os.getenv("SLACK_USER_TOKEN"))
+signing_secret = os.getenv("SLACK_SIGNING_SECRET")
+
+# Database configuration
+DATABASE_URL = os.getenv("DATABASE_URL")
 engine = create_engine(DATABASE_URL)
 metadata = MetaData()
 
-# Define tokens table
 tokens_table = Table('tokens', metadata,
     Column('team_id', String, nullable=False),
     Column('user_id', String, primary_key=True, nullable=False),
@@ -18,6 +33,78 @@ tokens_table = Table('tokens', metadata,
     Column('updated_at', String, nullable=False)
 )
 
+metadata.create_all(engine)
+
+store = {}
+
+def verify_slack_request(request):
+    timestamp = request.headers.get('X-Slack-Request-Timestamp')
+    if abs(time.time() - int(timestamp)) > 60 * 5:
+        return False
+
+    sig_basestring = f"v0:{timestamp}:{request.get_data(as_text=True)}"
+    my_signature = 'v0=' + hmac.new(
+        signing_secret.encode(),
+        sig_basestring.encode(),
+        hashlib.sha256
+    ).hexdigest()
+
+    slack_signature = request.headers.get('X-Slack-Signature')
+    return hmac.compare_digest(my_signature, slack_signature)
+
+@app.route('/install', methods=['GET'])
+def install():
+    state = str(uuid.uuid4())
+    store[state] = time.time()  # store the state with a timestamp
+    oauth_url = f"https://slack.com/oauth/v2/authorize?client_id={os.getenv('SLACK_CLIENT_ID')}&scope={os.getenv('SLACK_SCOPES')}&state={state}&redirect_uri={os.getenv('REDIRECT_URI')}"
+    return redirect(oauth_url)
+
+
+@app.route('/oauth/callback', methods=['GET'])
+def oauth_callback():
+    state = request.args.get('state')
+    code = request.args.get('code')
+
+    if not state or state not in store:
+        app.logger.error("State is missing or invalid from the callback URL")
+        return "State is missing or invalid from the callback URL", 400
+
+    response = client.oauth_v2_access(
+        client_id=os.getenv("SLACK_CLIENT_ID"),
+        client_secret=os.getenv("SLACK_CLIENT_SECRET"),
+        code=code,
+        redirect_uri=os.getenv("REDIRECT_URI")
+    )
+
+    if response['ok']:
+        team_id = response['team']['id']
+        user_id = response['authed_user']['id']
+        access_token = response['access_token']
+
+        insert_statement = tokens_table.insert().values(
+            team_id=team_id,
+            user_id=user_id,
+            access_token=access_token,
+            created_at=str(time.time()),
+            updated_at=str(time.time())
+        )
+
+        app.logger.info(f"Inserting with statement: {insert_statement}")
+
+        try:
+            with engine.connect() as conn:
+                conn.execute(insert_statement)
+                conn.commit()  # Ensure the transaction is committed
+            app.logger.info(f"Successfully stored token for team {team_id}, user {user_id}")
+            return "OAuth flow completed", 200
+        except Exception as e:
+            app.logger.error(f"Error during OAuth callback: {e}")
+            return "OAuth flow failed", 500
+    else:
+        return "OAuth flow failed", 400
+
+
+# Event handler for Slack events
 @app.route("/slack/events", methods=["POST"])
 def slack_events():
     event_data = request.json
@@ -65,5 +152,6 @@ def slack_events():
 
     return jsonify({"status": "Event received"}), 200
 
-if __name__ == "__main__":
-    app.run(debug=True)
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 3000))
+    app.run(debug=True, host='0.0.0.0', port=port)
