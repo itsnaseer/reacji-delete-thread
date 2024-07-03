@@ -68,39 +68,36 @@ def oauth_callback():
         app.logger.error("State is missing or invalid from the callback URL")
         return "State is missing or invalid from the callback URL", 400
 
-    try:
-        response = client.oauth_v2_access(
-            client_id=os.getenv("SLACK_CLIENT_ID"),
-            client_secret=os.getenv("SLACK_CLIENT_SECRET"),
-            code=code,
-            redirect_uri=os.getenv("REDIRECT_URI")
-        )
-    except Exception as e:
-        app.logger.error(f"Error during OAuth request: {e}")
-        return "OAuth flow failed during request", 500
+    response = client.oauth_v2_access(
+        client_id=os.getenv("SLACK_CLIENT_ID"),
+        client_secret=os.getenv("SLACK_CLIENT_SECRET"),
+        code=code,
+        redirect_uri=os.getenv("REDIRECT_URI")
+    )
 
     if response['ok']:
-        app.logger.debug(f"OAuth response: {response}")
         team_id = response['team']['id']
         user_id = response['authed_user']['id']
         access_token = response['access_token']
+        app.logger.info(f"Received token for team {team_id}, user {user_id}")
+        
         try:
             with engine.connect() as conn:
-                insert_query = tokens_table.insert().values(
+                conn.execute(tokens_table.insert().values(
                     team_id=team_id,
                     user_id=user_id,
                     access_token=access_token,
                     created_at=str(time.time()),
                     updated_at=str(time.time())
-                )
-                result = conn.execute(insert_query)
-                app.logger.info(f"Token stored successfully for team_id: {team_id}, result: {result.rowcount}")
+                ))
+            app.logger.info(f"Token stored for team {team_id}")
         except Exception as e:
             app.logger.error(f"Error storing token: {e}")
             return "Failed to store token", 500
+        
         return "OAuth flow completed", 200
     else:
-        app.logger.error(f"OAuth flow failed: {response}")
+        app.logger.error("OAuth flow failed")
         return "OAuth flow failed", 400
 
 # Event handler for Slack events
