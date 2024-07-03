@@ -59,6 +59,8 @@ def install():
     oauth_url = f"https://slack.com/oauth/v2/authorize?client_id={os.getenv('SLACK_CLIENT_ID')}&scope={os.getenv('SLACK_SCOPES')}&state={state}&redirect_uri={os.getenv('REDIRECT_URI')}"
     return redirect(oauth_url)
 
+from sqlalchemy import select, update, insert
+
 @app.route('/oauth/callback', methods=['GET'])
 def oauth_callback():
     state = request.args.get('state')
@@ -91,7 +93,7 @@ def oauth_callback():
                 if result:
                     # Update existing entry
                     conn.execute(
-                        tokens_table.update()
+                        update(tokens_table)
                         .where(tokens_table.c.user_id == user_id)
                         .values(
                             team_id=team_id,
@@ -103,7 +105,7 @@ def oauth_callback():
                 else:
                     # Insert new entry
                     conn.execute(
-                        tokens_table.insert().values(
+                        insert(tokens_table).values(
                             team_id=team_id,
                             user_id=user_id,
                             access_token=access_token,
