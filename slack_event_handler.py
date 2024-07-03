@@ -7,7 +7,7 @@ from flask import Flask, request, jsonify, redirect
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 from dotenv import load_dotenv
-from sqlalchemy import create_engine, Table, Column, String, MetaData, select, update, insert
+from sqlalchemy import create_engine, Table, Column, String, MetaData, select, update, insert, literal
 
 
 # Load environment variables from .env file
@@ -59,6 +59,7 @@ def install():
     oauth_url = f"https://slack.com/oauth/v2/authorize?client_id={os.getenv('SLACK_CLIENT_ID')}&scope={os.getenv('SLACK_SCOPES')}&state={state}&redirect_uri={os.getenv('REDIRECT_URI')}"
     return redirect(oauth_url)
 
+
 @app.route('/oauth/callback', methods=['GET'])
 def oauth_callback():
     state = request.args.get('state')
@@ -87,10 +88,10 @@ def oauth_callback():
                 result = conn.execute(
                     select([tokens_table.c.user_id]).where(tokens_table.c.user_id == user_id)
                 ).fetchone()
-                
+
                 if result:
                     # Update existing entry
-                    conn.execute(
+                    update_stmt = (
                         update(tokens_table)
                         .where(tokens_table.c.user_id == user_id)
                         .values(
@@ -99,18 +100,25 @@ def oauth_callback():
                             updated_at=str(time.time())
                         )
                     )
+                    conn.execute(update_stmt)
                     app.logger.info(f"Token updated for user {user_id}")
                 else:
-                    # Insert new entry
-                    conn.execute(
+                    # Prepare the insert command
+                    insert_stmt = (
                         tokens_table.insert().values(
                             team_id=team_id,
                             user_id=user_id,
                             access_token=access_token,
-                            created_at=str(time.time()),
-                            updated_at=str(time.time())
+                            created_at=literal("CURRENT_TIMESTAMP"),
+                            updated_at=literal("CURRENT_TIMESTAMP")
                         )
                     )
+
+                    # Output the complete insert command for debugging
+                    app.logger.debug(f"Insert statement: {str(insert_stmt.compile(engine, compile_kwargs={'literal_binds': True}))}")
+
+                    # Execute the insert command
+                    conn.execute(insert_stmt)
                     app.logger.info(f"Token stored for user {user_id}")
 
             app.logger.info("OAuth flow completed successfully")
@@ -122,6 +130,9 @@ def oauth_callback():
     except Exception as e:
         app.logger.error(f"Error during OAuth callback: {e}")
         return "Failed to complete OAuth flow", 500
+
+if __name__ == "__main__":
+    app.run(debug=True)
 
 # Event handler for Slack events
 @app.route("/slack/events", methods=["POST"])
