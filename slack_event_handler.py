@@ -8,6 +8,7 @@ from flask import Flask, request, jsonify, redirect
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 from dotenv import load_dotenv
+from requests.auth import HTTPBasicAuth
 from sqlalchemy import create_engine, Table, Column, String, MetaData, select, update, insert, literal
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -63,7 +64,6 @@ def install():
     return redirect(oauth_url)
 
 # OAUTH Callback - check for and update or store tokens
-
 @app.route('/oauth/callback', methods=['GET'])
 def oauth_callback():
     state = request.args.get('state')
@@ -73,21 +73,26 @@ def oauth_callback():
         app.logger.error("State is missing or invalid from the callback URL")
         return "State is missing or invalid from the callback URL", 400
 
-    response = client.oauth_v2_access(
-        client_id=os.getenv("SLACK_CLIENT_ID"),
-        client_secret=os.getenv("SLACK_CLIENT_SECRET"),
-        code=code,
-        redirect_uri=os.getenv("REDIRECT_URI")
-    )
+    # Basic authentication for client_id and client_secret
+    auth = HTTPBasicAuth(os.getenv("SLACK_CLIENT_ID"), os.getenv("SLACK_CLIENT_SECRET"))
 
-    app.logger.info(f"OAuth response: {response}")
+    token_url = "https://slack.com/api/oauth.v2.access"
+    data = {
+        'code': code,
+        'redirect_uri': os.getenv("REDIRECT_URI")
+    }
 
-    if response['ok']:
-        team_id = response['team']['id']
-        user_id = response['authed_user']['id']
-        access_token = response['authed_user'].get('access_token')  # Use user access token if available
+    response = requests.post(token_url, auth=auth, data=data)
+    response_data = response.json()
+
+    app.logger.info(f"OAuth response: {response_data}")
+
+    if response_data['ok']:
+        team_id = response_data['team']['id']
+        user_id = response_data['authed_user']['id']
+        access_token = response_data['authed_user'].get('access_token')  # Use user access token if available
         if not access_token:
-            access_token = response.get('access_token')  # Fallback to bot access token
+            access_token = response_data.get('access_token')  # Fallback to bot access token
         created_at = str(time.time())
         updated_at = created_at
 
@@ -135,7 +140,7 @@ def oauth_callback():
 
         return "OAuth flow completed", 200
     else:
-        app.logger.error(f"OAuth response error: {response}")
+        app.logger.error(f"OAuth response error: {response_data}")
         return "OAuth flow failed", 400
 
 # Event handler for Slack events
