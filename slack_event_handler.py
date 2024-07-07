@@ -146,10 +146,16 @@ def oauth_callback():
 # Event handler for Slack events
 @app.route("/slack/events", methods=["POST"])
 def slack_events():
-    app.logger.debug(f"Incoming Request: {request.headers}")
-    app.logger.debug(f"Incoming Request Data: {request.get_data(as_text=True)}")
     event_data = request.json
     app.logger.debug(f"Event Data: {event_data}")
+
+    # Verify that the event is coming from the correct workspace
+    if "team_id" not in event_data:
+        app.logger.error("team_id missing in event data")
+        return jsonify({"error": "team_id missing"}), 400
+    
+    team_id = event_data["team_id"]
+    app.logger.debug(f"Received event from team_id: {team_id}")
 
     if "event" in event_data and event_data["event"]["type"] == "reaction_added":
         event = event_data["event"]
@@ -159,7 +165,6 @@ def slack_events():
             item = event["item"]
             channel_id = item["channel"]
             message_ts = item["ts"]
-            app.logger.debug(f"Channel ID: {channel_id}, Message TS: {message_ts}")
 
             # Retrieve the token from the database
             conn = engine.connect()
@@ -168,7 +173,6 @@ def slack_events():
                 stmt = select(tokens_table.c.access_token).where(tokens_table.c.team_id == team_id)
                 result = conn.execute(stmt)
                 token = result.scalar()
-                app.logger.debug(f"Token Retrieved: {token}")
             except Exception as e:
                 app.logger.error(f"Error querying token: {e}")
                 conn.close()
@@ -182,23 +186,32 @@ def slack_events():
 
             app.logger.debug(f"Using token: {token} for team_id: {team_id}")
 
-            # Form the API call to delete the message
-            delete_url = "https://slack.com/api/chat.delete"
             headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
-            payload = {"channel": channel_id, "ts": message_ts}
-            app.logger.debug(f"Payload: {payload}")
 
-            response = requests.post(delete_url, headers=headers, json=payload)
-            response_data = response.json()
-            app.logger.debug(f"Response Data: {response_data}")
+            # Get threaded messages
+            replies_url = "https://slack.com/api/conversations.replies"
+            replies_payload = {"channel": channel_id, "ts": message_ts}
+            replies_response = requests.get(replies_url, headers=headers, params=replies_payload)
+            replies_data = replies_response.json()
 
-            if not response_data["ok"]:
-                app.logger.error(f"Error deleting message: {response_data['error']}")
-                return jsonify({"error": response_data["error"]}), 400
+            if not replies_data["ok"]:
+                app.logger.error(f"Error retrieving threaded messages: {replies_data['error']}")
+                return jsonify({"error": replies_data["error"]}), 400
 
-            app.logger.debug(f"Message deleted: {response_data}")
+            # Delete threaded messages from newest to oldest
+            for reply in sorted(replies_data["messages"], key=lambda x: x["ts"], reverse=True):
+                delete_url = "https://slack.com/api/chat.delete"
+                delete_payload = {"channel": channel_id, "ts": reply["ts"]}
+                delete_response = requests.post(delete_url, headers=headers, json=delete_payload)
+                delete_response_data = delete_response.json()
 
-            return jsonify({"status": "Message deleted"}), 200
+                if not delete_response_data["ok"]:
+                    app.logger.error(f"Error deleting message: {delete_response_data['error']}")
+                    return jsonify({"error": delete_response_data["error"]}), 400
+
+                app.logger.debug(f"Deleted message: {delete_response_data}")
+
+            return jsonify({"status": "Message and thread deleted"}), 200
 
     app.logger.debug("Event received but not processed")
     return jsonify({"status": "Event received"}), 200
