@@ -146,6 +146,8 @@ def oauth_callback():
 # Event handler for Slack events
 @app.route("/slack/events", methods=["POST"])
 def slack_events():
+    app.logger.debug(f"Incoming Request: {request.headers}")
+    app.logger.debug(f"Incoming Request Data: {request.get_data(as_text=True)}")
     event_data = request.json
     app.logger.debug(f"Event Data: {event_data}")
 
