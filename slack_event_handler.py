@@ -153,10 +153,9 @@ def slack_events():
 
     if "event" in event_data and event_data["event"]["type"] == "reaction_added":
         event = event_data["event"]
-        app.logger.debug(f"Reaction Event: {event}")
+        app.logger.debug(f"Reaction event: {event}")
+
         if event["reaction"] == "delete-thread":
-            team_id = event_data["team_id"]
-            app.logger.debug(f"Team ID: {team_id}")
             item = event["item"]
             channel_id = item["channel"]
             message_ts = item["ts"]
@@ -201,7 +200,7 @@ def slack_events():
 
             return jsonify({"status": "Message deleted"}), 200
 
-    app.logger.debug(f"Event received: {event_data}")
+    app.logger.debug("Event received but not processed")
     return jsonify({"status": "Event received"}), 200
 
 if __name__ == '__main__':
