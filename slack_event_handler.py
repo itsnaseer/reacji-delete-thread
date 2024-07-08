@@ -54,13 +54,17 @@ def verify_slack_request(request):
     slack_signature = request.headers.get('X-Slack-Signature')
     return hmac.compare_digest(my_signature, slack_signature)
 
+# INSTALL script-- stage scopes and compile URL
 @app.route('/install', methods=['GET'])
 def install():
     state = str(uuid.uuid4())
     store[state] = time.time()  # store the state with a timestamp
-    scopes = "channels:history,channels:read,chat:write,reactions:read,chat:write.public,emoji:read,users:read,chat:write.customize,im:history,mpim:history,groups:history,im:read,mpim:read,groups:read,users:read.email,chat:delete"
+
+    # Define the required scopes
+    bot_scopes = "channels:history,channels:read,chat:write,reactions:read,chat:write.public,emoji:read,users:read,chat:write.customize,im:history,mpim:history,groups:history,im:read,mpim:read,groups:read,chat:delete"
     user_scopes = "users:read,users:read.email"
-    oauth_url = f"https://slack.com/oauth/v2/authorize?client_id={os.getenv('SLACK_CLIENT_ID')}&scope={scopes}&user_scope={user_scopes}&state={state}&redirect_uri={os.getenv('REDIRECT_URI')}"
+
+    oauth_url = f"https://slack.com/oauth/v2/authorize?client_id={os.getenv('SLACK_CLIENT_ID')}&scope={bot_scopes}&user_scope={user_scopes}&state={state}&redirect_uri={os.getenv('REDIRECT_URI')}"
     return redirect(oauth_url)
 
 # OAUTH Callback - check for and update or store tokens
