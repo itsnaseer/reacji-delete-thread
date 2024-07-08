@@ -198,7 +198,7 @@ def slack_events():
             replies_data = replies_response.json()
 
             if not replies_data["ok"]:
-                app.logger.error(f"Error retrieving threaded messages: {replies_data['error']}")
+                app.logger.error(f"Error retrieving threaded messages: {replies_data['error']}, channel: {channel_id}, message_id: {message_ts}")
                 return jsonify({"error": replies_data["error"]}), 400
 
             # Delete threaded messages from newest to oldest
