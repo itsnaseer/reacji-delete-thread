@@ -209,7 +209,7 @@ def slack_events():
                 delete_response_data = delete_response.json()
 
                 if not delete_response_data["ok"]:
-                    app.logger.error(f"Error deleting message: {delete_response_data['error']}")
+                    app.logger.error(f"Error deleting message: {delete_response_data['error']}, channel: {channel_id}, message_id: {message_ts}")
                     return jsonify({"error": delete_response_data["error"]}), 400
 
                 app.logger.debug(f"Deleted message: {delete_response_data}")
