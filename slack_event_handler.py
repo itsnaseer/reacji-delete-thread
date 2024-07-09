@@ -116,22 +116,7 @@ def oauth_callback():
                 trans.commit()
                 app.logger.info(f"Successfully inserted token for team {team_id}, user {user_id}")
                 
-                # Send a message to the app home
-                try:
-                    user_info_response = requests.get(
-                        'https://slack.com/api/users.info',
-                        headers={"Authorization": f"Bearer {access_token}"},
-                        params={'user': user_id}
-                    )
-                    user_info = user_info_response.json()
-                    user_name = user_info['user']['real_name']
-                    
-                    client.chat_postMessage(
-                        channel=user_id,
-                        text=f"Hello {user_name} , your OAuth flow is complete!\nUser Token: {access_token}"
-                    )
-                except SlackApiError as e:
-                    app.logger.error(f"Error sending message to app home: {e.response['error']}")
+
 
             except Exception as insert_error:
                 app.logger.info(f"Error during insert: {insert_error}")
@@ -156,7 +141,22 @@ def oauth_callback():
                     trans.rollback()
                     app.logger.error(f"Error inserting token: {insert_error}")
                     return "OAuth flow failed", 500
-
+        # Send a message to the app home
+        try:
+            user_info_response = requests.get(
+                'https://slack.com/api/users.info',
+                headers={"Authorization": f"Bearer {access_token}"},
+                params={'user': user_id}
+            )
+            user_info = user_info_response.json()
+            user_name = user_info['user']['real_name']
+            
+            client.chat_postMessage(
+                channel=user_id,
+                text=f"Hello {user_name} , your OAuth flow is complete!\nUser Token: {access_token}"
+            )
+        except SlackApiError as e:
+            app.logger.error(f"Error sending message to app home: {e.response['error']}")
         return "OAuth flow completed", 200
     else:
         app.logger.error(f"OAuth response error: {response_data}")
