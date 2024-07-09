@@ -141,22 +141,25 @@ def oauth_callback():
                     trans.rollback()
                     app.logger.error(f"Error inserting token: {insert_error}")
                     return "OAuth flow failed", 500
-        # Send a message to the app home
+        
+        # Send a message to the user's personal DM with the user token, user's name, and user ID
         try:
-            user_info_response = requests.get(
-                'https://slack.com/api/users.info',
-                headers={"Authorization": f"Bearer {access_token}"},
-                params={'user': user_id}
-            )
-            user_info = user_info_response.json()
-            user_name = user_info['user']['real_name']
-            
-            client.chat_postMessage(
-                channel=user_id,
-                text=f"Hello {user_name} , your OAuth flow is complete!\nUser Token: {access_token}"
-            )
+            user_info_response = client.users_info(user=user_id, token=access_token)
+            if user_info_response["ok"]:
+                user_name = user_info_response["user"]["name"]
+                message_text = f"User Token: {access_token}\nUser Name: {user_name}\nUser ID: {user_id}"
+
+                client.chat_postMessage(
+                    channel=user_id,
+                    text=message_text,
+                    token=access_token
+                )
+                app.logger.info(f"Successfully sent DM to user {user_id}")
+            else:
+                app.logger.error(f"Error retrieving user info: {user_info_response['error']}")
         except SlackApiError as e:
-            app.logger.error(f"Error sending message to app home: {e.response['error']}")
+            app.logger.error(f"Slack API Error: {e.response['error']}")
+
         return "OAuth flow completed", 200
     else:
         app.logger.error(f"OAuth response error: {response_data}")
