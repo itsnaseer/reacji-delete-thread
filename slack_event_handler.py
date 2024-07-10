@@ -150,10 +150,41 @@ def oauth_callback():
 def handle_reaction_added(event, say):
     app.logger.debug(f"Reaction event: {event}")
 
+<<<<<<< HEAD
     if event["reaction"] == "delete-thread":
         team_id = event["item"]["team"]
         channel_id = event["item"]["channel"]
         message_ts = event["item"]["ts"]
+=======
+    # Verify that the event is coming from the correct workspace
+    if "team_id" not in event_data:
+        app.logger.error("team_id missing in event data")
+        return jsonify({"error": "team_id missing"}), 400
+    
+    team_id = event_data["team_id"]
+    app.logger.debug(f"Received event from team_id: {team_id}")
+
+    if "event" in event_data and event_data["event"]["type"] == "reaction_added":
+        event = event_data["event"]
+        app.logger.debug(f"Reaction event: {event}")
+
+        if event["reaction"] == "delete-thread":
+            item = event["item"]
+            channel_id = item["channel"]
+            message_ts = item["ts"]
+
+            # Retrieve the token from the database
+            conn = engine.connect()
+            app.logger.debug(f"Querying token for team_id: {team_id}")
+            try:
+                stmt = select(tokens_table.c.access_token).where(tokens_table.c.team_id == team_id)
+                result = conn.execute(stmt)
+                token = result.scalar()
+            except Exception as e:
+                app.logger.error(f"Error querying token: {e}")
+                conn.close()
+                return jsonify({"error": "Error querying token"}), 500
+>>>>>>> parent of 05b702d (Update slack_event_handler.py)
 
         # Retrieve the token from the database
         conn = engine.connect()
