@@ -167,88 +167,88 @@ def oauth_callback():
     
 
 # App Home 
-@app.event("app_home_opened")
-def update_home_tab(client,event,logger):
-    try:
-        # views.publish is the method that your app uses to push a view to the Home tab
-        client.views_publish(
-        # the user that opened your app's app home
-        user_id=event["user"],
-        # the view object that appears in the app home
-        view={
-            "type": "home",
-            "blocks": [
-                {
-                    "type": "section",
-                    "text": {
-                        "type": "mrkdwn",
-                        "text": "Use this app to delete messages (+ threaded replies) and generate the user token (`xoxp-1234567890`) for your current user. The user token is used to delete the messages and impersonate users in SBN workflows. Note: This app replaces <https://salesforce.enterprise.slack.com/docs/T01G0063H29/F0741QXLV0D|User Token Generator> (canvas will be transitioned)"
-                    }
-                },
-                {
-                    "type": "divider"
-                },
-                {
-                    "type": "header",
-                    "text": {
-                        "type": "plain_text",
-                        "text": "Get Started",
-                        "emoji": true
-                    }
-                },
-                {
-                    "type": "section",
-                    "text": {
-                        "type": "mrkdwn",
-                        "text": "This app uses a combination of bot and user token scopes to get permissions to manage conversations (DM, Channel, MPDM). The app uses the current user’s ID to generate the token. After generating the token it will send a message to the App’s Messages tab. "
-                    }
-                },
-                {
-                    "type": "section",
-                    "text": {
-                        "type": "mrkdwn",
-                        "text": "\t1.\t *Set up*. Add `delete-thread` as a reaction in your workspace. I like <https://drive.google.com/file/d/1JyOH1AAB1lAa3rHdyDXGrc_kOQuCsems/view?usp=drive_link|this version>, but you can use your own. "
-                    }
-                },
-                {
-                    "type": "section",
-                    "text": {
-                        "type": "mrkdwn",
-                        "text": "\t2.\t *Test*.Find a message anywhere in your workspace and apply the `:delete-thread:` reaction. If there are threaded messages, all replies will delete. "
-                    }
-                },
-                {
-                    "type": "section",
-                    "text": {
-                        "type": "mrkdwn",
-                        "text": "\t3.\t (optional) *Copy your token*. If you are using Smockbot Next, go to the your user’s DM with themself, copy the token, and follow the instructions for Using with SBN. "
-                    }
-                },
-                {
-                    "type": "section",
-                    "text": {
-                        "type": "mrkdwn",
-                        "text": "\t4.\t *Delete the token message*. Find the direct message <@{user_id}> with your user’s token in the DM with yourself and delete the message with the user token.\n_Bonus points_. Use :delete-thread: to delete the DM with the token info.  "
-                    }
-                },
-                {
-                    "type": "divider"
-                },
-                {
-                    "type": "context",
-                    "elements": [
-                        {
-                            "type": "mrkdwn",
-                            "text": "Are you looking for more comprehensive guidance? Check out the <https://salesforce.enterprise.slack.com/docs/T01G0063H29/F07BHJ16UAE|App Canvas in Giant Speck>"
-                        }
-                    ]
-                }
-            ]
-        }
-        )
+# @app.event("app_home_opened")
+# def update_home_tab(client,event,logger):
+#     try:
+#         # views.publish is the method that your app uses to push a view to the Home tab
+#         client.views_publish(
+#         # the user that opened your app's app home
+#         user_id=event["user"],
+#         # the view object that appears in the app home
+#         view={
+#             "type": "home",
+#             "blocks": [
+#                 {
+#                     "type": "section",
+#                     "text": {
+#                         "type": "mrkdwn",
+#                         "text": "Use this app to delete messages (+ threaded replies) and generate the user token (`xoxp-1234567890`) for your current user. The user token is used to delete the messages and impersonate users in SBN workflows. Note: This app replaces <https://salesforce.enterprise.slack.com/docs/T01G0063H29/F0741QXLV0D|User Token Generator> (canvas will be transitioned)"
+#                     }
+#                 },
+#                 {
+#                     "type": "divider"
+#                 },
+#                 {
+#                     "type": "header",
+#                     "text": {
+#                         "type": "plain_text",
+#                         "text": "Get Started",
+#                         "emoji": true
+#                     }
+#                 },
+#                 {
+#                     "type": "section",
+#                     "text": {
+#                         "type": "mrkdwn",
+#                         "text": "This app uses a combination of bot and user token scopes to get permissions to manage conversations (DM, Channel, MPDM). The app uses the current user’s ID to generate the token. After generating the token it will send a message to the App’s Messages tab. "
+#                     }
+#                 },
+#                 {
+#                     "type": "section",
+#                     "text": {
+#                         "type": "mrkdwn",
+#                         "text": "\t1.\t *Set up*. Add `delete-thread` as a reaction in your workspace. I like <https://drive.google.com/file/d/1JyOH1AAB1lAa3rHdyDXGrc_kOQuCsems/view?usp=drive_link|this version>, but you can use your own. "
+#                     }
+#                 },
+#                 {
+#                     "type": "section",
+#                     "text": {
+#                         "type": "mrkdwn",
+#                         "text": "\t2.\t *Test*.Find a message anywhere in your workspace and apply the `:delete-thread:` reaction. If there are threaded messages, all replies will delete. "
+#                     }
+#                 },
+#                 {
+#                     "type": "section",
+#                     "text": {
+#                         "type": "mrkdwn",
+#                         "text": "\t3.\t (optional) *Copy your token*. If you are using Smockbot Next, go to the your user’s DM with themself, copy the token, and follow the instructions for Using with SBN. "
+#                     }
+#                 },
+#                 {
+#                     "type": "section",
+#                     "text": {
+#                         "type": "mrkdwn",
+#                         "text": "\t4.\t *Delete the token message*. Find the direct message <@{user_id}> with your user’s token in the DM with yourself and delete the message with the user token.\n_Bonus points_. Use :delete-thread: to delete the DM with the token info.  "
+#                     }
+#                 },
+#                 {
+#                     "type": "divider"
+#                 },
+#                 {
+#                     "type": "context",
+#                     "elements": [
+#                         {
+#                             "type": "mrkdwn",
+#                             "text": "Are you looking for more comprehensive guidance? Check out the <https://salesforce.enterprise.slack.com/docs/T01G0063H29/F07BHJ16UAE|App Canvas in Giant Speck>"
+#                         }
+#                     ]
+#                 }
+#             ]
+#         }
+#         )
 
-    except Exception as e:
-        logger.error(f"Error publishing home tab: {e}")
+#     except Exception as e:
+#         logger.error(f"Error publishing home tab: {e}")
 
 # Event handler for Slack events
 @app.route("/slack/events", methods=["POST"])
@@ -265,6 +265,9 @@ def slack_events():
     
     team_id = event_data["team_id"]
     app.logger.debug(f"Received event from team_id: {team_id}")
+    if "event" in event_data and event_data["event"]["type"] == "app_home_opened":
+        app.logger.debug(f"Opened the home tab {event}")
+
     if "event" in event_data and event_data["event"]["type"] == "reaction_added":
         event = event_data["event"]
         app.logger.debug(f"Reaction event: {event}")
