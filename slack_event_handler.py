@@ -5,6 +5,7 @@ import hashlib
 import requests
 import uuid
 from flask import Flask, request, jsonify, redirect
+from slack_bolt import App
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 from dotenv import load_dotenv
@@ -180,6 +181,8 @@ def slack_events():
     
     team_id = event_data["team_id"]
     app.logger.debug(f"Received event from team_id: {team_id}")
+    if "event" in event_data and event_data["event"]["type"] == "app_home_opened":
+        app.logger.debug({event})
 
     if "event" in event_data and event_data["event"]["type"] == "reaction_added":
         event = event_data["event"]
