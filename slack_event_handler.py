@@ -181,8 +181,6 @@ def slack_events():
     
     team_id = event_data["team_id"]
     app.logger.debug(f"Received event from team_id: {team_id}")
-    if "event" in event_data and event_data["event"]["type"] == "app_home_opened":
-        app.logger.debug({event})
 
     if "event" in event_data and event_data["event"]["type"] == "reaction_added":
         event = event_data["event"]
