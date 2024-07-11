@@ -93,7 +93,7 @@ def update_home_tab(client, event, logger):
                     ]
                 }
             ]
-            }
+            })
 
     except Exception as e:
         logger.error(f"Error publishing home tab: {e}")
