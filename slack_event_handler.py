@@ -18,6 +18,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 # Load environment variables from .env file
 load_dotenv()
+<<<<<<< HEAD
 
 # Authorization function for Bolt app
 def authorize(enterprise_id, team_id, user_id):
@@ -188,6 +189,11 @@ def handle_reaction_added(client, event, logger):
 
     except Exception as e:
         logger.error(f"Error handling reaction_added event: {e}")
+=======
+
+# Initialize Flask app
+app = Flask(__name__)
+>>>>>>> parent of 2febc16 (Update slack_event_handler.py)
 
 # Slack client initialization
 client = WebClient(token=os.getenv("SLACK_CLIENT_ID"))  # Bot token used for OAuth flow
