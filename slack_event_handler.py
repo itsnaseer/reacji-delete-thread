@@ -15,7 +15,7 @@ from sqlalchemy import create_engine, Table, Column, String, MetaData, select, u
 from sqlalchemy.exc import SQLAlchemyError
 
 # Load environment variables from .env file
-#load_dotenv()
+load_dotenv()
 app_bolt = App(token=os.environ.get("SLACK_BOT_TOKEN"))
 logger = logging.getLogger(__name__)
 
