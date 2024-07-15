@@ -3,12 +3,12 @@ import time
 import hmac
 import hashlib
 import requests
-import logging
 import uuid
+import logging
 from flask import Flask, request, jsonify, redirect
+from slack_bolt import App
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
-from slack_bolt import App
 from dotenv import load_dotenv
 from requests.auth import HTTPBasicAuth
 from sqlalchemy import create_engine, Table, Column, String, MetaData, select, update, insert, literal
@@ -16,6 +16,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 load_dotenv()
 app_bolt = App(token=os.environ.get("SLACK_BOT_TOKEN")) #set up the Bolt elements
+logger = logging.getLogger(__name__)
 
 # set up the App Home
 @app_bolt.event("app_home_opened")
