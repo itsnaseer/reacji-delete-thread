@@ -8,6 +8,7 @@ import logging
 from flask import Flask, request, jsonify, redirect
 from slack_bolt import App
 from slack_bolt.adapter.flask import SlackRequestHandler
+from slack_bolt.authorization import AuthorizeResult
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 from dotenv import load_dotenv
@@ -25,10 +26,10 @@ def authorize(enterprise_id, team_id, user_id):
         result = conn.execute(stmt)
         token = result.scalar()
         if token:
-            return {
-                "bot_token": token,
-                "bot_user_id": user_id,
-            }
+            return AuthorizeResult(
+                bot_token=token,
+                bot_user_id=user_id,
+            )
         else:
             raise Exception("AuthorizeResult not found")
 
