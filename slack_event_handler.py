@@ -4,6 +4,7 @@ import hmac
 import hashlib
 import requests
 import uuid
+import logging
 from flask import Flask, request, jsonify, redirect
 from slack_bolt import App
 from slack_sdk import WebClient
@@ -14,10 +15,12 @@ from sqlalchemy import create_engine, Table, Column, String, MetaData, select, u
 from sqlalchemy.exc import SQLAlchemyError
 
 # Load environment variables from .env file
-load_dotenv()
+#load_dotenv()
+app_bolt = App(token=os.environ.get("SLACK_BOT_TOKEN"))
+logger = logging.getLogger(__name__)
 
 # set up the App Home
-@app.event("app_home_opened")
+@app_bolt.event("app_home_opened")
 def update_home_tab(client, event, logger):
     try:
         # Call views.publish with the built-in client
