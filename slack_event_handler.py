@@ -18,8 +18,26 @@ from sqlalchemy.exc import SQLAlchemyError
 # Load environment variables from .env file
 load_dotenv()
 
+# Authorization function for Bolt app
+def authorize(enterprise_id, team_id, user_id):
+    with engine.connect() as conn:
+        stmt = select(tokens_table.c.access_token).where(tokens_table.c.team_id == team_id)
+        result = conn.execute(stmt)
+        token = result.scalar()
+        if token:
+            return {
+                "bot_token": token,
+                "bot_user_id": user_id,
+            }
+        else:
+            raise Exception("AuthorizeResult not found")
+
 # Initialize Bolt app
-bolt_app = App(token=os.getenv("SLACK_BOT_TOKEN"), signing_secret=os.getenv("SLACK_SIGNING_SECRET"))
+bolt_app = App(
+    token=os.getenv("SLACK_BOT_TOKEN"),
+    signing_secret=os.getenv("SLACK_SIGNING_SECRET"),
+    authorize=authorize
+)
 
 # Initialize Flask app
 flask_app = Flask(__name__)
