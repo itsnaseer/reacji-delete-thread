@@ -4,11 +4,7 @@ import hmac
 import hashlib
 import requests
 import uuid
-import logging
 from flask import Flask, request, jsonify, redirect
-from slack_bolt import App
-from slack_bolt.adapter.flask import SlackRequestHandler
-from slack_bolt.authorization import AuthorizeResult
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 from dotenv import load_dotenv
@@ -16,184 +12,10 @@ from requests.auth import HTTPBasicAuth
 from sqlalchemy import create_engine, Table, Column, String, MetaData, select, update, insert, literal
 from sqlalchemy.exc import SQLAlchemyError
 
-# Load environment variables from .env file
 load_dotenv()
-<<<<<<< HEAD
-
-# Authorization function for Bolt app
-def authorize(enterprise_id, team_id, user_id):
-    with engine.connect() as conn:
-        stmt = select(tokens_table.c.access_token).where(tokens_table.c.team_id == team_id)
-        result = conn.execute(stmt)
-        token = result.scalar()
-        if token:
-            return AuthorizeResult(
-                bot_token=token,
-                bot_user_id=user_id,
-            )
-        else:
-            raise Exception("AuthorizeResult not found")
-
-# Initialize Bolt app
-bolt_app = App(
-    token=os.getenv("SLACK_BOT_TOKEN"),
-    signing_secret=os.getenv("SLACK_SIGNING_SECRET"),
-    authorize=authorize
-)
-
-# Initialize Flask app
-flask_app = Flask(__name__)
-handler = SlackRequestHandler(bolt_app)
-logger = logging.getLogger(__name__)
-
-# set up the App Home
-@bolt_app.event("app_home_opened")
-def update_home_tab(client, event, logger):
-    logger.info("app home was opened")
-    try:
-        # Call views.publish with the built-in client
-        client.views_publish(
-            # Use the user ID associated with the event
-            user_id=event["user"],
-            # Home tabs must be enabled in your app configuration
-            view={
-            "type": "home",
-            "blocks": [
-                {
-                    "type": "section",
-                    "text": {
-                        "type": "mrkdwn",
-                        "text": "Use this app to delete messages (+ threaded replies) and generate the user token (`xoxp-1234567890`) for your current user. The user token is used to delete the messages and impersonate users in SBN workflows. Note: This app replaces <https://salesforce.enterprise.slack.com/docs/T01G0063H29/F0741QXLV0D|User Token Generator> (canvas will be transitioned)"
-                    }
-                },
-                {
-                    "type": "divider"
-                },
-                {
-                    "type": "header",
-                    "text": {
-                        "type": "plain_text",
-                        "text": "Get Started"
-                    }
-                },
-                {
-                    "type": "section",
-                    "text": {
-                        "type": "mrkdwn",
-                        "text": "This app uses a combination of bot and user token scopes to get permissions to manage conversations (DM, Channel, MPDM). The app uses the current user’s ID to generate the token. After generating the token it will send a message to the App’s Messages tab. "
-                    }
-                },
-                {
-                    "type": "section",
-                    "text": {
-                        "type": "mrkdwn",
-                        "text": "\t1.\t *Set up*. Add `:delete-thread:` as a reaction in your workspace. I like <https://drive.google.com/file/d/1JyOH1AAB1lAa3rHdyDXGrc_kOQuCsems/view?usp=drive_link|this version>, but you can use your own. "
-                    }
-                },
-                {
-                    "type": "section",
-                    "text": {
-                        "type": "mrkdwn",
-                        "text": "\t2.\t *Test*.Find a message anywhere in your workspace and apply the `:delete-thread:` reaction. If there are threaded messages, all replies will delete. "
-                    }
-                },
-                {
-                    "type": "section",
-                    "text": {
-                        "type": "mrkdwn",
-                        "text": "\t3.\t (optional) *Copy your token*. If you are using Smockbot Next, go to the your DM with yourself <@{user_id}>, copy the token, and follow the instructions for Using with SBN. "
-                    }
-                },
-                {
-                    "type": "section",
-                    "text": {
-                        "type": "mrkdwn",
-                        "text": "\t4.\t *Delete the token message*. Find your direct message <@{user_id}> with your token in the DM with yourself and delete the message with the user token.\n_Bonus points_. Use :delete-thread: to delete the DM with the token info.  "
-                    }
-                },
-                {
-                    "type": "divider"
-                },
-                {
-                    "type": "context",
-                    "elements": [
-                        {
-                            "type": "mrkdwn",
-                            "text": "Are you looking for more comprehensive guidance? Check out the <https://salesforce.enterprise.slack.com/docs/T01G0063H29/F07BHJ16UAE|App Canvas in Giant Speck>"
-                        }
-                    ]
-                }
-            ]
-            })
-
-    except Exception as e:
-        logger.error(f"Error publishing home tab: {e}")
-
-
-# Set up event handler for reaction_added
-@bolt_app.event("reaction_added")
-def handle_reaction_added(client, event, logger):
-    try:
-        if event["reaction"] == "delete-thread":
-            team_id = event["team_id"]
-            item = event["item"]
-            channel_id = item["channel"]
-            message_ts = item["ts"]
-
-            # Retrieve the token from the database
-            conn = engine.connect()
-            logger.debug(f"Querying token for team_id: {team_id}")
-            try:
-                stmt = select(tokens_table.c.access_token).where(tokens_table.c.team_id == team_id)
-                result = conn.execute(stmt)
-                token = result.scalar()
-            except Exception as e:
-                logger.error(f"Error querying token: {e}")
-                conn.close()
-                return
-
-            conn.close()
-
-            if not token:
-                logger.error(f"Token not found for team_id: {team_id}")
-                return
-
-            logger.debug(f"Using token: {token} for team_id: {team_id}")
-
-            headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
-
-            # Get threaded messages
-            replies_url = "https://slack.com/api/conversations.replies"
-            replies_payload = {"channel": channel_id, "ts": message_ts}
-            replies_response = requests.get(replies_url, headers=headers, params=replies_payload)
-            replies_data = replies_response.json()
-
-            if not replies_data["ok"]:
-                logger.error(f"Error retrieving threaded messages: {replies_data['error']}, channel: {channel_id}, message_id: {message_ts}")
-                return
-
-            # Delete threaded messages from newest to oldest
-            for reply in sorted(replies_data["messages"], key=lambda x: x["ts"], reverse=True):
-                delete_url = "https://slack.com/api/chat.delete"
-                delete_payload = {"channel": channel_id, "ts": reply["ts"]}
-                delete_response = requests.post(delete_url, headers=headers, json=delete_payload)
-                delete_response_data = delete_response.json()
-
-                if not delete_response_data["ok"]:
-                    logger.error(f"Error deleting message: {delete_response_data['error']}, channel: {channel_id}, message_id: {message_ts}")
-                    return
-
-                logger.debug(f"Deleted message: {delete_response_data}")
-
-            logger.debug("Message and thread deleted successfully")
-
-    except Exception as e:
-        logger.error(f"Error handling reaction_added event: {e}")
-=======
 
 # Initialize Flask app
 app = Flask(__name__)
->>>>>>> parent of 2febc16 (Update slack_event_handler.py)
 
 # Slack client initialization
 client = WebClient(token=os.getenv("SLACK_CLIENT_ID"))  # Bot token used for OAuth flow
@@ -232,7 +54,7 @@ def verify_slack_request(request):
     return hmac.compare_digest(my_signature, slack_signature)
 
 # INSTALL script-- stage scopes and compile URL
-@flask_app.route('/install', methods=['GET'])
+@app.route('/install', methods=['GET'])
 def install():
     state = str(uuid.uuid4())
     store[state] = time.time()  # store the state with a timestamp
@@ -241,15 +63,14 @@ def install():
     oauth_url = f"https://slack.com/oauth/v2/authorize?client_id={os.getenv('SLACK_CLIENT_ID')}&scope={scopes}&user_scope={user_scopes}&state={state}&redirect_uri={os.getenv('REDIRECT_URI')}"
     return redirect(oauth_url)
 
-
 # OAUTH Callback - check for and update or store tokens
-@flask_app.route('/oauth/callback', methods=['GET'])
+@app.route('/oauth/callback', methods=['GET'])
 def oauth_callback():
     state = request.args.get('state')
     code = request.args.get('code')
 
     if not state or state not in store:
-        flask_app.logger.error("State is missing or invalid from the callback URL")
+        app.logger.error("State is missing or invalid from the callback URL")
         return "State is missing or invalid from the callback URL", 400
 
     # Basic authentication for client_id and client_secret
@@ -264,7 +85,7 @@ def oauth_callback():
     response = requests.post(token_url, auth=auth, data=data)
     response_data = response.json()
 
-    flask_app.logger.info(f"OAuth response: {response_data}")
+    app.logger.info(f"OAuth response: {response_data}")
 
     if response_data['ok']:
         team_id = response_data['team']['id']
@@ -276,13 +97,14 @@ def oauth_callback():
         updated_at = created_at
 
         if not access_token:
-            flask_app.logger.error("Access token not found in OAuth response")
+            app.logger.error("Access token not found in OAuth response")
             return "OAuth flow failed", 500
 
         with engine.connect() as conn:
-            flask_app.logger.info(f"Inserting/updating token for team {team_id}, user {user_id}, access_token: {access_token}")
+            app.logger.info(f"Inserting/updating token for team {team_id}, user {user_id}, access_token: {access_token}")
             trans = conn.begin()
             try:
+                # Try to insert the new token
                 conn.execute(tokens_table.insert().values(
                     team_id=team_id,
                     user_id=user_id,
@@ -291,12 +113,16 @@ def oauth_callback():
                     updated_at=updated_at
                 ))
                 trans.commit()
-                flask_app.logger.info(f"Successfully inserted token for team {team_id}, user {user_id}")
+                app.logger.info(f"Successfully inserted token for team {team_id}, user {user_id}")
+                
+
+
             except Exception as insert_error:
-                flask_app.logger.info(f"Error during insert: {insert_error}")
+                app.logger.info(f"Error during insert: {insert_error}")
                 if 'duplicate key value violates unique constraint' in str(insert_error):
                     trans.rollback()
-                    flask_app.logger.info(f"Token for user {user_id} already exists, updating instead.")
+                    # If a unique constraint violation occurs, update the existing token
+                    app.logger.info(f"Token for user {user_id} already exists, updating instead.")
                     trans = conn.begin()
                     try:
                         conn.execute(tokens_table.update().values(
@@ -305,14 +131,14 @@ def oauth_callback():
                             updated_at=updated_at
                         ).where(tokens_table.c.user_id == user_id))
                         trans.commit()
-                        flask_app.logger.info(f"Successfully updated token for team {team_id}, user {user_id}")
+                        app.logger.info(f"Successfully updated token for team {team_id}, user {user_id}")
                     except Exception as update_error:
                         trans.rollback()
-                        flask_app.logger.error(f"Error updating token: {update_error}")
+                        app.logger.error(f"Error updating token: {update_error}")
                         return "OAuth flow failed", 500
                 else:
                     trans.rollback()
-                    flask_app.logger.error(f"Error inserting token: {insert_error}")
+                    app.logger.error(f"Error inserting token: {insert_error}")
                     return "OAuth flow failed", 500
         
         # Send a message to the user's personal DM with the user token, user's name, and user ID
@@ -327,22 +153,92 @@ def oauth_callback():
                     text=message_text,
                     token=access_token
                 )
-                flask_app.logger.info(f"Successfully sent DM to user {user_id}")
+                app.logger.info(f"Successfully sent DM to user {user_id}")
             else:
-                flask_app.logger.error(f"Error retrieving user info: {user_info_response['error']}")
+                app.logger.error(f"Error retrieving user info: {user_info_response['error']}")
         except SlackApiError as e:
-            flask_app.logger.error(f"Slack API Error: {e.response['error']}")
+            app.logger.error(f"Slack API Error: {e.response['error']}")
 
         return "OAuth flow completed", 200
     else:
-        flask_app.logger.error(f"OAuth response error: {response_data}")
+        app.logger.error(f"OAuth response error: {response_data}")
         return "OAuth flow failed", 400
 
 # Event handler for Slack events
-@flask_app.route("/slack/events", methods=["POST"])
+@app.route("/slack/events", methods=["POST"])
 def slack_events():
-    return handler.handle(request)
+    app.logger.debug(f"Incoming Request: {request.headers}")
+    app.logger.debug(f"Incoming Request Data: {request.get_data(as_text=True)}")
+    event_data = request.json
+    app.logger.debug(f"Event Data: {event_data}")
+
+    # Verify that the event is coming from the correct workspace
+    if "team_id" not in event_data:
+        app.logger.error("team_id missing in event data")
+        return jsonify({"error": "team_id missing"}), 400
+    
+    team_id = event_data["team_id"]
+    app.logger.debug(f"Received event from team_id: {team_id}")
+
+    if "event" in event_data and event_data["event"]["type"] == "reaction_added":
+        event = event_data["event"]
+        app.logger.debug(f"Reaction event: {event}")
+
+        if event["reaction"] == "delete-thread":
+            item = event["item"]
+            channel_id = item["channel"]
+            message_ts = item["ts"]
+
+            # Retrieve the token from the database
+            conn = engine.connect()
+            app.logger.debug(f"Querying token for team_id: {team_id}")
+            try:
+                stmt = select(tokens_table.c.access_token).where(tokens_table.c.team_id == team_id)
+                result = conn.execute(stmt)
+                token = result.scalar()
+            except Exception as e:
+                app.logger.error(f"Error querying token: {e}")
+                conn.close()
+                return jsonify({"error": "Error querying token"}), 500
+
+            conn.close()
+
+            if not token:
+                app.logger.error(f"Token not found for team_id: {team_id}")
+                return jsonify({"error": "Token not found"}), 400
+
+            app.logger.debug(f"Using token: {token} for team_id: {team_id}")
+
+            headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+
+            # Get threaded messages
+            replies_url = "https://slack.com/api/conversations.replies"
+            replies_payload = {"channel": channel_id, "ts": message_ts}
+            replies_response = requests.get(replies_url, headers=headers, params=replies_payload)
+            replies_data = replies_response.json()
+
+            if not replies_data["ok"]:
+                app.logger.error(f"Error retrieving threaded messages: {replies_data['error']}, channel: {channel_id}, message_id: {message_ts}")
+                return jsonify({"error": replies_data["error"]}), 400
+
+            # Delete threaded messages from newest to oldest
+            for reply in sorted(replies_data["messages"], key=lambda x: x["ts"], reverse=True):
+                delete_url = "https://slack.com/api/chat.delete"
+                delete_payload = {"channel": channel_id, "ts": reply["ts"]}
+                delete_response = requests.post(delete_url, headers=headers, json=delete_payload)
+                delete_response_data = delete_response.json()
+
+                if not delete_response_data["ok"]:
+                    app.logger.error(f"Error deleting message: {delete_response_data['error']}, channel: {channel_id}, message_id: {message_ts}")
+                    return jsonify({"error": delete_response_data["error"]}), 400
+
+                app.logger.debug(f"Deleted message: {delete_response_data}")
+
+            return jsonify({"status": "Message and thread deleted"}), 200
+
+    app.logger.debug("Event received but not processed")
+    return jsonify({"status": "Event received"}), 200
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 3000))
-    flask_app.run(debug=True, host='0.0.0.0', port=port)
+    app.run(debug=True, host='0.0.0.0', port=port)
