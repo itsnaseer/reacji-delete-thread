@@ -7,6 +7,7 @@ import uuid
 from flask import Flask, request, jsonify, redirect
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
+from slack_bolt import App
 from dotenv import load_dotenv
 from requests.auth import HTTPBasicAuth
 from sqlalchemy import create_engine, Table, Column, String, MetaData, select, update, insert, literal
