@@ -7,6 +7,7 @@ import uuid
 import logging
 from flask import Flask, request, jsonify, redirect
 from slack_bolt import App
+from slack_bolt.adapter.flask import SlackRequestHandler
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 from dotenv import load_dotenv
@@ -14,12 +15,19 @@ from requests.auth import HTTPBasicAuth
 from sqlalchemy import create_engine, Table, Column, String, MetaData, select, update, insert, literal
 from sqlalchemy.exc import SQLAlchemyError
 
+# Load environment variables from .env file
 load_dotenv()
-app_bolt = App(token=os.environ.get("SLACK_BOT_TOKEN")) #set up the Bolt elements
+
+# Initialize Bolt app
+bolt_app = App(token=os.getenv("SLACK_BOT_TOKEN"), signing_secret=os.getenv("SLACK_SIGNING_SECRET"))
+
+# Initialize Flask app
+app = Flask(__name__)
+handler = SlackRequestHandler(bolt_app)
 logger = logging.getLogger(__name__)
 
 # set up the App Home
-@app_bolt.event("app_home_opened")
+@bolt_app.event("app_home_opened")
 def update_home_tab(client, event, logger):
     try:
         # Call views.publish with the built-in client
@@ -102,8 +110,6 @@ def update_home_tab(client, event, logger):
 
 
 
-# Initialize Flask app-- need this for the database work
-app = Flask(__name__)
 
 # Slack client initialization
 client = WebClient(token=os.getenv("SLACK_CLIENT_ID"))  # Bot token used for OAuth flow
