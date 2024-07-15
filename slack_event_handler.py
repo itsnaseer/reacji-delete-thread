@@ -29,6 +29,7 @@ logger = logging.getLogger(__name__)
 # set up the App Home
 @bolt_app.event("app_home_opened")
 def update_home_tab(client, event, logger):
+    logger.info("app home was opened")
     try:
         # Call views.publish with the built-in client
         client.views_publish(
