@@ -20,6 +20,33 @@ load_dotenv()
 
 # Initialize Bolt app
 bolt_app = App(token=os.getenv("SLACK_BOT_TOKEN"), signing_secret=os.getenv("SLACK_SIGNING_SECRET"))
+def authorize(enterprise_id, team_id, user_id):
+    conn = engine.connect()
+    logger.debug(f"Authorize called with enterprise_id: {enterprise_id}, team_id: {team_id}, user_id: {user_id}")
+    try:
+        stmt = select(tokens_table.c.access_token).where(tokens_table.c.team_id == team_id)
+        result = conn.execute(stmt)
+        token = result.scalar()
+    except Exception as e:
+        logger.error(f"Error querying token in authorize function: {e}")
+        conn.close()
+        return None
+
+    conn.close()
+
+    if not token:
+        logger.error(f"Token not found for team_id: {team_id} in authorize function")
+        return None
+
+    logger.debug(f"Token found for team_id: {team_id} in authorize function: {token}")
+    return {
+        "enterprise_id": enterprise_id,
+        "team_id": team_id,
+        "bot_token": token
+    }
+
+# Assign the authorize function to Bolt app
+bolt_app.authorize = authorize
 
 # Initialize Flask app
 app = Flask(__name__)
