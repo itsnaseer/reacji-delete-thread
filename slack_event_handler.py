@@ -252,7 +252,7 @@ def oauth_callback():
         app.logger.error(f"OAuth response error: {response_data}")
         return "OAuth flow failed", 400
 
-# Event handler for Slack events
+# Event handler for Slack events and app config
 @app.route("/slack/events", methods=["POST"])
 def slack_events():
     app.logger.debug(f"Incoming Request: {request.headers}")
