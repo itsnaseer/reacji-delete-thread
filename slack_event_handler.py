@@ -123,23 +123,23 @@ def update_home_tab(client, event, logger):
 # Reaction-added handler
 @bolt_app.event("reaction_added")
 def handle_reaction_added(client, event, logger):
-    logger.debug(f"reaction received: {event['reaction']}")
+    logger.debug(f"Received reaction: {event['reaction']}")
     try:
         if event["reaction"] == "delete-thread":
             team_id = event["team_id"]
-            item = event["itmem"]
+            item = event["item"]  
             channel_id = item["channel"]
             message_ts = item["ts"]
 
-            #retreive token
+            # Retrieve token
             conn = engine.connect()
             logger.debug(f"Query token for team_id: {team_id}")
             try:
                 stmt = select(tokens_table.c.access_token).where(tokens_table.c.team_id == team_id)
-                result = conn.execut(stmt)
-                token=result.scalar()
+                result = conn.execute(stmt)  
+                token = result.scalar()
             except Exception as e:
-                logger.error(f"Error quering token {e}")
+                logger.error(f"Error querying token {e}")
                 conn.close()
                 return
             conn.close()
@@ -147,38 +147,37 @@ def handle_reaction_added(client, event, logger):
             if not token:
                 logger.error(f"Token not found for team_id: {team_id}")
                 return
-            logger.debug(f"Using token:{token} for team_id: {team_id}")
+            logger.debug(f"Using token: {token} for team_id: {team_id}")
 
             headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
 
-            #get threaded messages
+            # Get threaded messages
             replies_url = "https://slack.com/api/conversations.replies"
             replies_payload = {"channel": channel_id, "ts": message_ts}
             replies_response = requests.get(replies_url, headers=headers, params=replies_payload)
             replies_data = replies_response.json()
 
             if not replies_data["ok"]:
-                logger.error(f"Error retreiving threaded messages: {replies_data['error']}, channel: {channel_id}, message_id: {message_ts}")
+                logger.error(f"Error retrieving threaded messages: {replies_data['error']}, channel: {channel_id}, message_id: {message_ts}")
                 return
             
-            #delete threaded messages from newest to oldest
-            for reply in sorted (replies_data["messages"], key=lambda x: x["ts"], reverse=True):
+            # Delete threaded messages from newest to oldest
+            for reply in sorted(replies_data["messages"], key=lambda x: x["ts"], reverse=True):
                 delete_url = "https://slack.com/api/chat.delete"
-                delete_payload = {"channel": channel_id, "ts":["ts"]}
+                delete_payload = {"channel": channel_id, "ts": reply["ts"]}  
                 delete_response = requests.post(delete_url, headers=headers, json=delete_payload)
                 delete_response_data = delete_response.json()
 
                 if not delete_response_data["ok"]:
-                    logger.error(f"Error deleting message {delete_response_data['error']}, channel: {channel_id}, message_id:{message_ts}")
+                    logger.error(f"Error deleting message {delete_response_data['error']}, channel: {channel_id}, message_id: {message_ts}")
                     return
                 
                 logger.debug(f"Deleted message: {delete_response_data}")
 
             logger.debug("Message and thread deleted successfully")
 
-
     except Exception as e:
-        logger.error(f"Erorr handling reaction_added event:{e}")
+        logger.error(f"Error handling reaction_added event: {e}")
 
 # Slack client initialization
 client = WebClient(token=os.getenv("SLACK_CLIENT_ID"))  # Bot token used for OAuth flow
@@ -327,6 +326,10 @@ def oauth_callback():
     else:
         app.logger.error(f"OAuth response error: {response_data}")
         return "OAuth flow failed", 400
+
+@app.route("/slack/events", methods=["POST"])
+def slack_events():
+    return handler.handle(request)
 
 # Event handler for Slack events and app config
 # @app.route("/slack/events", methods=["POST"])
