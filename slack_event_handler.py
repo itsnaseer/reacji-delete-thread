@@ -260,6 +260,10 @@ def slack_events():
     event_data = request.json
     app.logger.debug(f"Event Data: {event_data}")
 
+    # Respond to Slack Events API challenge
+    if "challenge" in event_data:
+        return jsonify({"challenge": event_data["challenge"]})
+
     # Verify that the event is coming from the correct workspace
     if "team_id" not in event_data:
         app.logger.error("team_id missing in event data")
