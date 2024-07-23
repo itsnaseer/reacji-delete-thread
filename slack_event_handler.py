@@ -6,7 +6,7 @@ import requests
 import uuid
 import logging
 from flask import Flask, request, jsonify, redirect
-from slack_bolt import App
+from slack_bolt import App, AuthorizeResult
 from slack_bolt.adapter.flask import SlackRequestHandler
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
@@ -19,6 +19,7 @@ from sqlalchemy.exc import SQLAlchemyError
 load_dotenv()
 
 # Initialize Bolt app
+# Authorize function for Bolt
 def authorize(enterprise_id, team_id, user_id):
     conn = engine.connect()
     logger.debug(f"Authorizing for team_id: {team_id}")
@@ -42,8 +43,8 @@ def authorize(enterprise_id, team_id, user_id):
         user_id=user_id,
         bot_token=token
     )
+
 bolt_app = App(token=os.getenv("SLACK_BOT_TOKEN"), signing_secret=os.getenv("SLACK_SIGNING_SECRET"), authorize=authorize)
-signing_secret = os.getenv("SLACK_SIGNING_SECRET")
 
 # Initialize Flask app
 logger = logging.getLogger(__name__)
