@@ -119,15 +119,14 @@ def update_home_tab(client, event, logger):
     except Exception as e:
         logger.error(f"Error publishing home tab: {e}")
 
-
-# Reaction-added handler
+# Event handler for reaction_added
 @bolt_app.event("reaction_added")
 def handle_reaction_added(client, event, logger):
     logger.debug(f"Received reaction: {event['reaction']}")
     try:
         if event["reaction"] == "delete-thread":
             team_id = event["team_id"]
-            item = event["item"]  
+            item = event["item"] 
             channel_id = item["channel"]
             message_ts = item["ts"]
 
@@ -136,12 +135,13 @@ def handle_reaction_added(client, event, logger):
             logger.debug(f"Query token for team_id: {team_id}")
             try:
                 stmt = select(tokens_table.c.access_token).where(tokens_table.c.team_id == team_id)
-                result = conn.execute(stmt)  
+                result = conn.execute(stmt) 
                 token = result.scalar()
             except Exception as e:
                 logger.error(f"Error querying token {e}")
                 conn.close()
                 return
+
             conn.close()
 
             if not token:
@@ -327,8 +327,11 @@ def oauth_callback():
         app.logger.error(f"OAuth response error: {response_data}")
         return "OAuth flow failed", 400
 
+# Event handler for Slack events and app config
 @app.route("/slack/events", methods=["POST"])
 def slack_events():
+    if "challenge" in request.json:
+        return jsonify({"challenge": request.json["challenge"]})
     return handler.handle(request)
 
 # Event handler for Slack events and app config
