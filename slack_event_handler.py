@@ -20,37 +20,33 @@ from sqlalchemy.exc import SQLAlchemyError
 load_dotenv()
 
 # Initialize Bolt app
-# Authorize function for Bolt
-def authorize(enterprise_id, team_id, user_id):
-    conn = engine.connect()
-    logger.debug(f"Authorizing for team_id: {team_id}")
-    try:
-        stmt = select(tokens_table.c.access_token).where(tokens_table.c.team_id == team_id)
-        result = conn.execute(stmt)
-        token = result.scalar()
-    except Exception as e:
-        logger.error(f"Error querying token for authorization: {e}")
-        conn.close()
-        return None
-    conn.close()
-    
-    if not token:
-        logger.error(f"Token not found for team_id: {team_id}")
-        return None
-    
-    return AuthorizeResult(
-        enterprise_id=enterprise_id,
-        team_id=team_id,
-        user_id=user_id,
-        bot_token=token
-    )
-
-bolt_app = App(token=os.getenv("SLACK_BOT_TOKEN"), signing_secret=os.getenv("SLACK_SIGNING_SECRET"), authorize=authorize)
+bolt_app = App(token=os.getenv("SLACK_BOT_TOKEN"), signing_secret=os.getenv("SLACK_SIGNING_SECRET"))
 
 # Initialize Flask app
-logger = logging.getLogger(__name__)
 app = Flask(__name__)
-handler = SlackRequestHandler(bolt_app) #need to refer back to bolt functions after flask auth   
+handler = SlackRequestHandler(bolt_app)
+logger = logging.getLogger(__name__)
+
+# Database configuration
+DATABASE_URL = os.getenv("DATABASE_URL")
+engine = create_engine(DATABASE_URL)
+metadata = MetaData()
+
+tokens_table = Table('tokens', metadata,
+    Column('team_id', String, nullable=False),
+    Column('user_id', String, primary_key=True, nullable=False),
+    Column('access_token', String, nullable=False),
+    Column('created_at', String, nullable=False),
+    Column('updated_at', String, nullable=False)
+)
+
+metadata.create_all(engine)
+
+store = {}
+
+# Slack client initialization
+client = WebClient(token=os.getenv("SLACK_CLIENT_ID"))  # Bot token used for OAuth flow
+#not reinitializing the signing secret. might need to revisit that. 
 
 # Set up the App Home
 @bolt_app.event("app_home_opened")
@@ -148,7 +144,7 @@ def handle_reaction_added(client, event, logger):
     try:
         if event["reaction"] == "delete-thread":
             team_id = event["team_id"]
-            item = event["item"]  
+            item = event["item"]
             channel_id = item["channel"]
             message_ts = item["ts"]
 
@@ -157,7 +153,7 @@ def handle_reaction_added(client, event, logger):
             logger.debug(f"Query token for team_id: {team_id}")
             try:
                 stmt = select(tokens_table.c.access_token).where(tokens_table.c.team_id == team_id)
-                result = conn.execute(stmt)  
+                result = conn.execute(stmt)
                 token = result.scalar()
             except Exception as e:
                 logger.error(f"Error querying token {e}")
@@ -182,18 +178,18 @@ def handle_reaction_added(client, event, logger):
             if not replies_data["ok"]:
                 logger.error(f"Error retrieving threaded messages: {replies_data['error']}, channel: {channel_id}, message_id: {message_ts}")
                 return
-            
+
             # Delete threaded messages from newest to oldest
             for reply in sorted(replies_data["messages"], key=lambda x: x["ts"], reverse=True):
                 delete_url = "https://slack.com/api/chat.delete"
-                delete_payload = {"channel": channel_id, "ts": reply["ts"]} 
+                delete_payload = {"channel": channel_id, "ts": reply["ts"]}
                 delete_response = requests.post(delete_url, headers=headers, json=delete_payload)
                 delete_response_data = delete_response.json()
 
                 if not delete_response_data["ok"]:
                     logger.error(f"Error deleting message {delete_response_data['error']}, channel: {channel_id}, message_id: {message_ts}")
                     return
-                
+
                 logger.debug(f"Deleted message: {delete_response_data}")
 
             logger.debug("Message and thread deleted successfully")
@@ -201,28 +197,9 @@ def handle_reaction_added(client, event, logger):
     except Exception as e:
         logger.error(f"Error handling reaction_added event: {e}")
 
-# Slack client initialization
-client = WebClient(token=os.getenv("SLACK_CLIENT_ID"))  # Bot token used for OAuth flow
-#not reinitializing the signing secret. might need to revisit that. 
 
 
-# Database configuration
-DATABASE_URL = os.getenv("DATABASE_URL")
-engine = create_engine(DATABASE_URL)
-metadata = MetaData()
-
-tokens_table = Table('tokens', metadata,
-    Column('team_id', String, nullable=False),
-    Column('user_id', String, primary_key=True, nullable=False),
-    Column('access_token', String, nullable=False),
-    Column('created_at', String, nullable=False),
-    Column('updated_at', String, nullable=False)
-)
-
-metadata.create_all(engine)
-
-store = {}
-
+# Verify Slack request
 def verify_slack_request(request):
     timestamp = request.headers.get('X-Slack-Request-Timestamp')
     if abs(time.time() - int(timestamp)) > 60 * 5:
@@ -230,7 +207,7 @@ def verify_slack_request(request):
 
     sig_basestring = f"v0:{timestamp}:{request.get_data(as_text=True)}"
     my_signature = 'v0=' + hmac.new(
-        signing_secret.encode(),
+        os.getenv("SLACK_SIGNING_SECRET").encode(),
         sig_basestring.encode(),
         hashlib.sha256
     ).hexdigest()
