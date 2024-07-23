@@ -123,6 +123,7 @@ def update_home_tab(client, event, logger):
 # Reaction-added handler
 @bolt_app.event("reaction_added")
 def handle_reaction_added(client, event, logger):
+    logger.debug(f"reaction received: {event['reaction']}")
     try:
         if event["reaction"] == "delete-thread":
             team_id = event["team_id"]
@@ -146,7 +147,7 @@ def handle_reaction_added(client, event, logger):
             if not token:
                 logger.error(f"Token not found for team_id: {team_id}")
                 return
-            logger.debut(f"Using token:{token} for team_id: {team_id}")
+            logger.debug(f"Using token:{token} for team_id: {team_id}")
 
             headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
 
