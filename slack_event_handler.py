@@ -7,7 +7,6 @@ import uuid
 import logging
 from flask import Flask, request, jsonify, redirect
 from slack_bolt import App
-from slack_bolt.authorization import AuthorizeResult
 from slack_bolt.adapter.flask import SlackRequestHandler
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
@@ -46,7 +45,6 @@ store = {}
 
 # Slack client initialization
 client = WebClient(token=os.getenv("SLACK_CLIENT_ID"))  # Bot token used for OAuth flow
-#not reinitializing the signing secret. might need to revisit that. 
 
 # Set up the App Home
 @bolt_app.event("app_home_opened")
@@ -178,7 +176,7 @@ def handle_reaction_added(client, event, logger):
             if not replies_data["ok"]:
                 logger.error(f"Error retrieving threaded messages: {replies_data['error']}, channel: {channel_id}, message_id: {message_ts}")
                 return
-
+            
             # Delete threaded messages from newest to oldest
             for reply in sorted(replies_data["messages"], key=lambda x: x["ts"], reverse=True):
                 delete_url = "https://slack.com/api/chat.delete"
@@ -189,7 +187,7 @@ def handle_reaction_added(client, event, logger):
                 if not delete_response_data["ok"]:
                     logger.error(f"Error deleting message {delete_response_data['error']}, channel: {channel_id}, message_id: {message_ts}")
                     return
-
+                
                 logger.debug(f"Deleted message: {delete_response_data}")
 
             logger.debug("Message and thread deleted successfully")
