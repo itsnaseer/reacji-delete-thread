@@ -20,7 +20,7 @@ from sqlalchemy.exc import SQLAlchemyError
 load_dotenv()
 
 # Initialize Bolt app
-bolt_app = App(token=os.getenv("SLACK_BOT_TOKEN"), signing_secret=os.getenv("SLACK_SIGNING_SECRET"))
+
 def authorize(enterprise_id, team_id, user_id):
     conn = engine.connect()
     logger.debug(f"Authorize called with enterprise_id: {enterprise_id}, team_id: {team_id}, user_id: {user_id}")
@@ -47,7 +47,10 @@ def authorize(enterprise_id, team_id, user_id):
     }
 
 # Assign the authorize function to Bolt app
-bolt_app.authorize = authorize
+bolt_app = App(
+    signing_secret=os.getenv("SLACK_SIGNING_SECRET"),
+    authorize=authorize
+)
 
 # Initialize Flask app
 app = Flask(__name__)
