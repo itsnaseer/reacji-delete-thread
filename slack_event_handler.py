@@ -25,17 +25,7 @@ signing_secret = os.getenv("SLACK_SIGNING_SECRET")
 # Initialize Flask app
 logger = logging.getLogger(__name__)
 app = Flask(__name__)
-handler = SlackRequestHandler(bolt_app) #need to refer back to bolt functions after flask auth
-
-#respond to Slack challenge request
-# @bolt_app.event("challenge")
-# def respondToChallenge():
-#     event_data = request.json
-#     try:
-#         return jsonify({"challenge": event_data["challenge"]})
-#     except Exception as e:
-#         app.logger.error("Slack Challenge Error")
-        
+handler = SlackRequestHandler(bolt_app) #need to refer back to bolt functions after flask auth   
 
 # Set up the App Home
 @bolt_app.event("app_home_opened")
@@ -119,6 +109,13 @@ def update_home_tab(client, event, logger):
     except Exception as e:
         logger.error(f"Error publishing home tab: {e}")
 
+# Event handler for Slack events and app config
+@app.route("/slack/events", methods=["POST"])
+def slack_events():
+    if "challenge" in request.json:
+        return jsonify({"challenge": request.json["challenge"]})
+    return handler.handle(request)
+
 # Event handler for reaction_added
 @bolt_app.event("reaction_added")
 def handle_reaction_added(client, event, logger):
@@ -126,7 +123,7 @@ def handle_reaction_added(client, event, logger):
     try:
         if event["reaction"] == "delete-thread":
             team_id = event["team_id"]
-            item = event["item"] 
+            item = event["item"]  
             channel_id = item["channel"]
             message_ts = item["ts"]
 
@@ -135,7 +132,7 @@ def handle_reaction_added(client, event, logger):
             logger.debug(f"Query token for team_id: {team_id}")
             try:
                 stmt = select(tokens_table.c.access_token).where(tokens_table.c.team_id == team_id)
-                result = conn.execute(stmt) 
+                result = conn.execute(stmt)  
                 token = result.scalar()
             except Exception as e:
                 logger.error(f"Error querying token {e}")
@@ -164,7 +161,7 @@ def handle_reaction_added(client, event, logger):
             # Delete threaded messages from newest to oldest
             for reply in sorted(replies_data["messages"], key=lambda x: x["ts"], reverse=True):
                 delete_url = "https://slack.com/api/chat.delete"
-                delete_payload = {"channel": channel_id, "ts": reply["ts"]}  
+                delete_payload = {"channel": channel_id, "ts": reply["ts"]} 
                 delete_response = requests.post(delete_url, headers=headers, json=delete_payload)
                 delete_response_data = delete_response.json()
 
@@ -327,91 +324,6 @@ def oauth_callback():
         app.logger.error(f"OAuth response error: {response_data}")
         return "OAuth flow failed", 400
 
-# Event handler for Slack events and app config
-@app.route("/slack/events", methods=["POST"])
-def slack_events():
-    if "challenge" in request.json:
-        return jsonify({"challenge": request.json["challenge"]})
-    return handler.handle(request)
-
-# Event handler for Slack events and app config
-# @app.route("/slack/events", methods=["POST"])
-# def slack_events():
-#     app.logger.debug(f"Incoming Request: {request.headers}")
-#     app.logger.debug(f"Incoming Request Data: {request.get_data(as_text=True)}")
-#     event_data = request.json
-#     app.logger.debug(f"Event Data: {event_data}")
-
-#     # Respond to Slack Events API challenge
-#     if "challenge" in event_data:
-#         return jsonify({"challenge": event_data["challenge"]})
-
-#     # Verify that the event is coming from the correct workspace
-#     if "team_id" not in event_data:
-#         app.logger.error("team_id missing in event data")
-#         return jsonify({"error": "team_id missing"}), 400
-    
-#     team_id = event_data["team_id"]
-#     app.logger.debug(f"Received event from team_id: {team_id}")
-
-#     if "event" in event_data and event_data["event"]["type"] == "reaction_added":
-#         event = event_data["event"]
-#         app.logger.debug(f"Reaction event: {event}")
-
-#         if event["reaction"] == "delete-thread":
-#             item = event["item"]
-#             channel_id = item["channel"]
-#             message_ts = item["ts"]
-
-#             # Retrieve the token from the database
-#             conn = engine.connect()
-#             app.logger.debug(f"Querying token for team_id: {team_id}")
-#             try:
-#                 stmt = select(tokens_table.c.access_token).where(tokens_table.c.team_id == team_id)
-#                 result = conn.execute(stmt)
-#                 token = result.scalar()
-#             except Exception as e:
-#                 app.logger.error(f"Error querying token: {e}")
-#                 conn.close()
-#                 return jsonify({"error": "Error querying token"}), 500
-
-#             conn.close()
-
-#             if not token:
-#                 app.logger.error(f"Token not found for team_id: {team_id}")
-#                 return jsonify({"error": "Token not found"}), 400
-
-#             app.logger.debug(f"Using token: {token} for team_id: {team_id}")
-
-#             headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
-
-#             # Get threaded messages
-#             replies_url = "https://slack.com/api/conversations.replies"
-#             replies_payload = {"channel": channel_id, "ts": message_ts}
-#             replies_response = requests.get(replies_url, headers=headers, params=replies_payload)
-#             replies_data = replies_response.json()
-
-#             if not replies_data["ok"]:
-#                 app.logger.error(f"Error retrieving threaded messages: {replies_data['error']}, channel: {channel_id}, message_id: {message_ts}")
-#                 return jsonify({"error": replies_data["error"]}), 400
-
-#             # Delete threaded messages from newest to oldest
-#             for reply in sorted(replies_data["messages"], key=lambda x: x["ts"], reverse=True):
-#                 delete_url = "https://slack.com/api/chat.delete"
-#                 delete_payload = {"channel": channel_id, "ts": reply["ts"]}
-#                 delete_response = requests.post(delete_url, headers=headers, json=delete_payload)
-#                 delete_response_data = delete_response.json()
-
-#                 if not delete_response_data["ok"]:
-#                     app.logger.error(f"Error deleting message: {delete_response_data['error']}, channel: {channel_id}, message_id: {message_ts}")
-#                     return jsonify({"error": delete_response_data["error"]}), 400
-
-#                 app.logger.debug(f"Deleted message: {delete_response_data}")
-
-#             return jsonify({"status": "Message and thread deleted"}), 200
-
-#     app.logger.debug("Event received but not processed")
-#     return jsonify({"status": "Event received"}), 200
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 3000))
