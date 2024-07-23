@@ -213,6 +213,29 @@ def verify_slack_request(request):
     slack_signature = request.headers.get('X-Slack-Signature')
     return hmac.compare_digest(my_signature, slack_signature)
 
+# Authorization function for Bolt
+def authorize(enterprise_id, team_id, user_id, is_enterprise_install, api_app_id, token=None):
+    conn = engine.connect()
+    try:
+        stmt = select(tokens_table.c.access_token).where(tokens_table.c.team_id == team_id)
+        result = conn.execute(stmt)
+        token = result.scalar()
+        if not token:
+            raise Exception(f"No token found for team_id {team_id}")
+        return AuthorizeResult(
+            enterprise_id=enterprise_id,
+            team_id=team_id,
+            user_id=user_id,
+            bot_token=token,
+        )
+    except Exception as e:
+        logger.error(f"Authorization error: {e}")
+        raise
+    finally:
+        conn.close()
+
+bolt_app.authorization(authorize)
+
 # INSTALL script-- stage scopes and compile URL
 @app.route('/install', methods=['GET'])
 def install():
