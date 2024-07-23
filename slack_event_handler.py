@@ -141,10 +141,18 @@ def handle_reaction_added(client, event, logger):
     logger.debug(f"Received reaction: {event['reaction']}")
     try:
         if event["reaction"] == "delete-thread":
-            team_id = event["team_id"]
-            item = event["item"]
-            channel_id = item["channel"]
-            message_ts = item["ts"]
+            team_id = event.get("team_id")
+            item = event.get("item")
+            if not item:
+                logger.error("Item is missing in the event data")
+                return
+
+            channel_id = item.get("channel")
+            message_ts = item.get("ts")
+
+            if not channel_id or not message_ts:
+                logger.error("Channel ID or message timestamp is missing in the item data")
+                return
 
             # Retrieve token
             conn = engine.connect()
@@ -154,7 +162,7 @@ def handle_reaction_added(client, event, logger):
                 result = conn.execute(stmt)
                 token = result.scalar()
             except Exception as e:
-                logger.error(f"Error querying token {e}")
+                logger.error(f"Error querying token: {e}")
                 conn.close()
                 return
 
@@ -275,9 +283,6 @@ def oauth_callback():
                 ))
                 trans.commit()
                 app.logger.info(f"Successfully inserted token for team {team_id}, user {user_id}")
-                
-
-
             except Exception as insert_error:
                 app.logger.info(f"Error during insert: {insert_error}")
                 if 'duplicate key value violates unique constraint' in str(insert_error):
