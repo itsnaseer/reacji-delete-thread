@@ -28,13 +28,13 @@ app = Flask(__name__)
 handler = SlackRequestHandler(bolt_app) #need to refer back to bolt functions after flask auth
 
 #respond to Slack challenge request
-@bolt_app.event("challenge")
-def respondToChallenge():
-    event_data = request.json
-    try:
-        return jsonify({"challenge": event_data["challenge"]})
-    except Exception as e:
-        app.logger.error("Slack Challenge Error")
+# @bolt_app.event("challenge")
+# def respondToChallenge():
+#     event_data = request.json
+#     try:
+#         return jsonify({"challenge": event_data["challenge"]})
+#     except Exception as e:
+#         app.logger.error("Slack Challenge Error")
         
 
 # Set up the App Home
