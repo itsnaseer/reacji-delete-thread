@@ -173,6 +173,10 @@ def handle_reaction_added(client, event, logger):
     try:
         if event["reaction"] == "delete-thread":
             team_id = event.get("team_id")
+            if not team_id:
+                logger.error("team_id is missing in the event data")
+                return
+
             item = event.get("item")
             if not item:
                 logger.error("Item is missing in the event data")
@@ -233,8 +237,6 @@ def handle_reaction_added(client, event, logger):
 
     except Exception as e:
         logger.error(f"Error handling reaction_added event: {e}")
-
-
 
 # Verify Slack request
 def verify_slack_request(request):
