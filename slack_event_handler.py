@@ -180,9 +180,11 @@ def slack_events():
 @bolt_app.event("reaction_added")
 def handle_reaction_added(client, event, logger):
     logger.debug(f"Received reaction event: {event}")
+    logger.debug(f"Full event payload: {event}")
+    
     try:
-        # Check if team_id exists in the event
-        team_id = event.get("team_id")
+        # Access team_id from the top-level payload if not present in event
+        team_id = event.get("team_id") or event["team"]
         if not team_id:
             logger.error("team_id is missing in the event data")
             return
