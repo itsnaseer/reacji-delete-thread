@@ -215,14 +215,14 @@ def handle_reaction_added(client, say, event):
             logger.error(f"Error fetching replies {e}")
         
         # delete the original message
-        try: 
-            result = client.chat_delete(
-                channel=message_channel,
-                ts=message_ts 
-            )
-            logger.info(result)
-        except SlackApiError as e:
-            logger.error(f"Error deleting message {e}")
+        # try: 
+        #     result = client.chat_delete(
+        #         channel=message_channel,
+        #         ts=message_ts 
+        #     )
+        #     logger.info(result)
+        # except SlackApiError as e:
+        #     logger.error(f"Error deleting message {e}")
 
     
     # try:
