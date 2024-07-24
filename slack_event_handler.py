@@ -186,7 +186,7 @@ def handle_reaction_added(client, say, event):
         #delete_url = "https://slack.com/api/chat.delete"
         event_item = event.get("item")
         message_channel = event_item.get("channel")
-        message_ts = event_item.get("ts").replace('.','')
+        message_ts = event_item.get("ts")
         say(f"event details {event}\nitem{event_item}\nChannel: {message_channel}\nTime stamp: {message_ts}")
             # delete_payload = {"channel": channel_id, "ts": reply["ts"]}
             # delete_response = requests.post(delete_url, headers=headers, json=delete_payload)
@@ -198,7 +198,7 @@ def handle_reaction_added(client, say, event):
             )
             logger.info(result)
         except SlackApiError as e:
-            logger.error(f"Error deleting message{e}")
+            logger.error(f"Error deleting message {e}")
 
     
     # try:
