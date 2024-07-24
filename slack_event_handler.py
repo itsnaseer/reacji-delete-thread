@@ -80,13 +80,11 @@ client = WebClient(token=os.getenv("SLACK_CLIENT_ID"))  # Bot token used for OAu
 # Event handler for app_home_opened
 @bolt_app.event("app_home_opened")
 def update_home_tab(client, event, logger):
-    
+    user_id = event["user"]
     try:
         # Use the bot token for publishing the home tab
-        #bot_token = os.getenv("SLACK_BOT_TOKEN")
         client.views_publish(
-        #    token=bot_token,
-            user_id=event["user"],
+            user_id=user_id,
             view={
                 "type": "home",
                 "blocks": [
@@ -94,65 +92,8 @@ def update_home_tab(client, event, logger):
                         "type": "section",
                         "text": {
                             "type": "mrkdwn",
-                            "text": "Is this working? Cam I just ignore the error? \nUse this app to delete messages (+ threaded replies) and generate the user token (`xoxp-1234567890`) for your current user. The user token is used to delete the messages and impersonate users in SBN workflows. Note: This app replaces <https://salesforce.enterprise.slack.com/docs/T01G0063H29/F0741QXLV0D|User Token Generator> (canvas will be transitioned)"
+                            "text": "Is this working? Can I just ignore the error? \nUse this app to delete messages (+ threaded replies) and generate the user token (`xoxp-1234567890`) for your current user. The user token is used to delete the messages and impersonate users in SBN workflows. Note: This app replaces <https://salesforce.enterprise.slack.com/docs/T01G0063H29/F0741QXLV0D|User Token Generator> (canvas will be transitioned)"
                         }
-                    },
-                    {
-                        "type": "divider"
-                    },
-                    {
-                        "type": "header",
-                        "text": {
-                            "type": "plain_text",
-                            "text": "Get Started"
-                        }
-                    },
-                    {
-                        "type": "section",
-                        "text": {
-                            "type": "mrkdwn",
-                            "text": "This app uses a combination of bot and user token scopes to get permissions to manage conversations (DM, Channel, MPDM). The app uses the current user’s ID to generate the token. After generating the token it will send a message to the App’s Messages tab. "
-                        }
-                    },
-                    {
-                        "type": "section",
-                        "text": {
-                            "type": "mrkdwn",
-                            "text": "\t1.\t *Set up*. Add `:delete-thread:` as a reaction in your workspace. I like <https://drive.google.com/file/d/1JyOH1AAB1lAa3rHdyDXGrc_kOQuCsems/view?usp=drive_link|this version>, but you can use your own. "
-                        }
-                    },
-                    {
-                        "type": "section",
-                        "text": {
-                            "type": "mrkdwn",
-                            "text": "\t2.\t *Test*.Find a message anywhere in your workspace and apply the `:delete-thread:` reaction. If there are threaded messages, all replies will delete. "
-                        }
-                    },
-                    {
-                        "type": "section",
-                        "text": {
-                            "type": "mrkdwn",
-                            "text": "\t3.\t (optional) *Copy your token*. If you are using Smockbot Next, go to the your DM with yourself <@{user_id}>, copy the token, and follow the instructions for Using with SBN. "
-                        }
-                    },
-                    {
-                        "type": "section",
-                        "text": {
-                            "type": "mrkdwn",
-                            "text": "\t4.\t *Delete the token message*. Find your direct message <@{user_id}> with your token in the DM with yourself and delete the message with the user token.\n_Bonus points_. Use :delete-thread: to delete the DM with the token info.  "
-                        }
-                    },
-                    {
-                        "type": "divider"
-                    },
-                    {
-                        "type": "context",
-                        "elements": [
-                            {
-                                "type": "mrkdwn",
-                                "text": "Are you looking for more comprehensive guidance? Check out the <https://salesforce.enterprise.slack.com/docs/T01G0063H29/F07BHJ16UAE|App Canvas in Giant Speck>"
-                            }
-                        ]
                     }
                 ]
             }
@@ -161,14 +102,6 @@ def update_home_tab(client, event, logger):
 
     except Exception as e:
         logger.error(f"Error publishing home tab: {e}")
-
-#testing events
-@bolt_app.message("hello")
-def message_hello(message, say):
-    # say() sends a message to the channel where the event was triggered
-    logger.debug(f"Event received {message}")
-    say(f"Hey there <@{message['user']}>!")
-
 
 # Event handler for Slack events and app config
 @app.route("/slack/events", methods=["POST"])
