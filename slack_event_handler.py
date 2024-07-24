@@ -185,7 +185,7 @@ def handle_reaction_added(client, say, event):
         event_item = event.get("item")
         message_channel = event_item.get("channel")
         message_ts = event_item.get("ts")
-        say(f"*Message details*: {event}\n*Item*: {event_item}\n*Channel*: {message_channel}\n*Time stamp*: {message_ts}")
+        logger.info(f"Message details: {event} ~*~*~*~ Item: {event_item} Channel: {message_channel} ~*~*~*~ Time stamp: {message_ts}")
         
         #checking for replies
         try:
