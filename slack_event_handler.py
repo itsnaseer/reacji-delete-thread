@@ -180,7 +180,7 @@ def slack_events():
 @bolt_app.event("reaction_added")
 def handle_reaction_added(client, say, event, logger):
     reaction = event["reaction"] 
-    logger.info("Received a reaction event")
+    logger.debug("Received a reaction event")
     if reaction == "flag-message":
         say("Hey there !")
     
