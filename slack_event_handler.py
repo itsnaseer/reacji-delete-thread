@@ -1,20 +1,17 @@
 import os
 import time
-import hmac
-import hashlib
-import requests
-import uuid
 import logging
-from flask import Flask, request, jsonify, redirect
+from flask import Flask, request, jsonify
 from slack_bolt import App
-from slack_bolt.authorization import AuthorizeResult
 from slack_bolt.adapter.flask import SlackRequestHandler
-from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 from dotenv import load_dotenv
-from requests.auth import HTTPBasicAuth
-from sqlalchemy import create_engine, Table, Column, String, MetaData, select, update, insert, literal
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import create_engine, Table, Column, String, MetaData
+
+from install import install
+from oauth_callback import oauth_callback
+from authorize import authorize
+from verify_slack_request import verify_slack_request
 
 # Load environment variables from .env file
 load_dotenv()
@@ -33,7 +30,7 @@ tokens_table = Table('tokens', metadata,
     Column('team_id', String, nullable=False),
     Column('user_id', String, primary_key=True, nullable=False),
     Column('access_token', String, nullable=False),
-    Column('bot_token', String, nullable=True),  # Add bot_token column if not already present
+    Column('bot_token', String, nullable=True),
     Column('created_at', String, nullable=False),
     Column('updated_at', String, nullable=False)
 )
@@ -42,42 +39,10 @@ metadata.create_all(engine)
 
 store = {}
 
-# Slack client initialization
-client = WebClient()  # Initialize without token
-
-def authorize(enterprise_id, team_id, user_id):
-    conn = engine.connect()
-    logger.debug(f"Authorize called with enterprise_id: {enterprise_id}, team_id: {team_id}, user_id: {user_id}")
-    try:
-        stmt = select(tokens_table.c.access_token, tokens_table.c.bot_token).where(tokens_table.c.team_id == team_id)
-        result = conn.execute(stmt).fetchone()
-        if result:
-            access_token, bot_token = result
-        else:
-            access_token = bot_token = None
-    except Exception as e:
-        logger.error(f"Error querying token in authorize function: {e}")
-        conn.close()
-        return None
-
-    conn.close()
-
-    if not bot_token:
-        logger.error(f"Bot token not found for team_id: {team_id} in authorize function")
-        return None
-
-    logger.debug(f"Tokens found for team_id: {team_id} in authorize function: access_token: {access_token}, bot_token: {bot_token}")
-    return AuthorizeResult(
-        enterprise_id=enterprise_id,
-        team_id=team_id,
-        bot_token=bot_token,
-        user_token=access_token
-    )
-
 # Initialize Bolt app with authorize function
 bolt_app = App(
     signing_secret=os.getenv("SLACK_SIGNING_SECRET"),
-    authorize=authorize
+    authorize=lambda enterprise_id, team_id, user_id: authorize(engine, tokens_table, enterprise_id, team_id, user_id)
 )
 handler = SlackRequestHandler(bolt_app)
 
@@ -154,135 +119,15 @@ def handle_reaction_added(client, event, context, logger):
         except SlackApiError as e:
             logger.error(f"Error fetching replies: {e}")
         
-# Verify Slack request
-def verify_slack_request(request):
-    timestamp = request.headers.get('X-Slack-Request-Timestamp')
-    if abs(time.time() - int(timestamp)) > 60 * 5:
-        return False
-
-    sig_basestring = f"v0:{timestamp}:{request.get_data(as_text=True)}"
-    my_signature = 'v0=' + hmac.new(
-        os.getenv("SLACK_SIGNING_SECRET").encode(),
-        sig_basestring.encode(),
-        hashlib.sha256
-    ).hexdigest()
-
-    slack_signature = request.headers.get('X-Slack-Signature')
-    return hmac.compare_digest(my_signature, slack_signature)
-
-
-# INSTALL script-- stage scopes and compile URL
+# Route for install
 @app.route('/install', methods=['GET'])
-def install():
-    state = str(uuid.uuid4())
-    store[state] = time.time()  # store the state with a timestamp
-    scopes = "channels:history,channels:read,chat:write,reactions:read,chat:write.public,emoji:read,users:read,chat:write.customize,im:history,mpim:history,groups:history,im:read,mpim:read,groups:read,users:read.email"
-    user_scopes = "admin,channels:history,channels:read,reactions:read,users:read,users:read.email,chat:write,mpim:history,groups:history,im:history"
-    oauth_url = f"https://slack.com/oauth/v2/authorize?client_id={os.getenv('SLACK_CLIENT_ID')}&scope={scopes}&user_scope={user_scopes}&state={state}&redirect_uri={os.getenv('REDIRECT_URI')}"
-    return redirect(oauth_url)
+def install_route():
+    return install()
 
-# OAUTH Callback - check for and update or store tokens
+# OAUTH Callback route
 @app.route('/oauth/callback', methods=['GET'])
-def oauth_callback():
-    state = request.args.get('state')
-    code = request.args.get('code')
-
-    if not state or state not in store:
-        app.logger.error("State is missing or invalid from the callback URL")
-        return "State is missing or invalid from the callback URL", 400
-
-    # Basic authentication for client_id and client_secret
-    auth = HTTPBasicAuth(os.getenv("SLACK_CLIENT_ID"), os.getenv("SLACK_CLIENT_SECRET"))
-
-    token_url = "https://slack.com/api/oauth.v2.access"
-    data = {
-        'code': code,
-        'redirect_uri': os.getenv("REDIRECT_URI")
-    }
-
-    response = requests.post(token_url, auth=auth, data=data)
-    response_data = response.json()
-
-    app.logger.info(f"OAuth response: {response_data}")
-
-    if response_data['ok']:
-        team_id = response_data['team']['id']
-        user_id = response_data['authed_user']['id']
-        access_token = response_data['authed_user'].get('access_token')  # Use user access token if available
-        bot_token = response_data.get('access_token')  # Fallback to bot access token
-
-        created_at = str(time.time())
-        updated_at = created_at
-
-        app.logger.debug(f"Team ID: {team_id}, User ID: {user_id}, Access Token: {access_token}, Bot Token: {bot_token}")
-
-        if not access_token:
-            app.logger.error("Access token not found in OAuth response")
-            return "OAuth flow failed", 500
-
-        with engine.connect() as conn:
-            app.logger.info(f"Inserting/updating token for team {team_id}, user {user_id}, access_token: {access_token}, bot_token: {bot_token}")
-            trans = conn.begin()
-            try:
-                # Try to insert the new token
-                conn.execute(tokens_table.insert().values(
-                    team_id=team_id,
-                    user_id=user_id,
-                    access_token=access_token,
-                    bot_token=bot_token,
-                    created_at=created_at,
-                    updated_at=updated_at
-                ))
-                trans.commit()
-                app.logger.info(f"Successfully inserted token for team {team_id}, user {user_id}")
-            except Exception as insert_error:
-                app.logger.info(f"Error during insert: {insert_error}")
-                if 'duplicate key value violates unique constraint' in str(insert_error):
-                    trans.rollback()
-                    # If a unique constraint violation occurs, update the existing token
-                    app.logger.info(f"Token for user {user_id} already exists, updating instead.")
-                    trans = conn.begin()
-                    try:
-                        conn.execute(tokens_table.update().values(
-                            team_id=team_id,
-                            access_token=access_token,
-                            bot_token=bot_token,
-                            updated_at=updated_at
-                        ).where(tokens_table.c.user_id == user_id))
-                        trans.commit()
-                        app.logger.info(f"Successfully updated token for team {team_id}, user {user_id}")
-                    except Exception as update_error:
-                        trans.rollback()
-                        app.logger.error(f"Error updating token: {update_error}")
-                        return "OAuth flow failed", 500
-                else:
-                    trans.rollback()
-                    app.logger.error(f"Error inserting token: {insert_error}")
-                    return "OAuth flow failed", 500
-
-        # Send a message to the user's personal DM with the user token, user's name, and user ID
-        try:
-            user_info_response = client.users_info(user=user_id, token=access_token)
-            if user_info_response["ok"]:
-                user_name = user_info_response["user"]["name"]
-                message_text = f"User Token: {access_token}\nUser Name: {user_name}\nUser ID: {user_id}"
-
-                client.chat_postMessage(
-                    channel=user_id,
-                    text=message_text,
-                    token=access_token
-                )
-                app.logger.info(f"Successfully sent DM to user {user_id}")
-            else:
-                app.logger.error(f"Error retrieving user info: {user_info_response['error']}")
-        except SlackApiError as e:
-            app.logger.error(f"Slack API Error: {e.response['error']}")
-
-        return "OAuth flow completed", 200
-    else:
-        app.logger.error(f"OAuth response error: {response_data}")
-        return "OAuth flow failed", 400
-
+def oauth_callback_route():
+    return oauth_callback(engine, tokens_table, app, client)
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 3000))
