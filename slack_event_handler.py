@@ -191,6 +191,14 @@ def handle_reaction_added(client, say, event):
             # delete_payload = {"channel": channel_id, "ts": reply["ts"]}
             # delete_response = requests.post(delete_url, headers=headers, json=delete_payload)
             # delete_response_data = delete_response.json()
+        try: 
+            result = client.chat_delete(
+                channel=message_channel,
+                ts=message_ts 
+            )
+            logger.info(result)
+        except SlackApiError as e:
+            logger.error(f"Error deleting message{e}")
 
     
     # try:
