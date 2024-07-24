@@ -141,7 +141,7 @@ def handle_reaction_added(client, event, context, logger):
                 try:
                     result = client.chat_delete(
                         channel=message_channel,
-                        ts=ts
+                        ts=ts,
                         token=user_token
                     )
                     logger.info(result)
