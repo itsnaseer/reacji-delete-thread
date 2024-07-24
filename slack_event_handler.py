@@ -45,16 +45,14 @@ store = {}
 # Slack client initialization
 client = WebClient()  # Initialize without token
 
-# Authorize function to fetch tokens from the database
 def authorize(enterprise_id, team_id, user_id):
     conn = engine.connect()
     logger.debug(f"Authorize called with enterprise_id: {enterprise_id}, team_id: {team_id}, user_id: {user_id}")
     try:
         stmt = select(tokens_table.c.access_token, tokens_table.c.bot_token).where(tokens_table.c.team_id == team_id)
-        result = conn.execute(stmt)
-        token_row = result.fetchone()
-        token = token_row['access_token'] if token_row else None
-        bot_token = token_row['bot_token'] if token_row else None
+        result = conn.execute(stmt).fetchone()
+        access_token = result[0] if result else None
+        bot_token = result[1] if result else None
     except Exception as e:
         logger.error(f"Error querying token in authorize function: {e}")
         conn.close()
@@ -62,15 +60,16 @@ def authorize(enterprise_id, team_id, user_id):
 
     conn.close()
 
-    if not token or not bot_token:
-        logger.error(f"Token or bot_token not found for team_id: {team_id} in authorize function")
+    if not bot_token:
+        logger.error(f"Bot token not found for team_id: {team_id} in authorize function")
         return None
 
-    logger.debug(f"Token found for team_id: {team_id} in authorize function: {token}")
+    logger.debug(f"Tokens found for team_id: {team_id} in authorize function: access_token: {access_token}, bot_token: {bot_token}")
     return AuthorizeResult(
         enterprise_id=enterprise_id,
         team_id=team_id,
-        bot_token=bot_token
+        bot_token=bot_token,
+        user_token=access_token
     )
 
 # Initialize Bolt app with authorize function
