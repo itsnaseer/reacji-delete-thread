@@ -116,39 +116,38 @@ def slack_events():
 @bolt_app.event("reaction_added")
 def handle_reaction_added(client, event, logger):
     reaction = event["reaction"] 
-    logger.debug(f"Received a reaction event {reaction}")
+    logger.debug(f"Received a reaction event: {reaction}")
+
     if reaction == "delete-thread":
         event_item = event.get("item")
         message_channel = event_item.get("channel")
         message_ts = event_item.get("ts")
         logger.info(f"Message details: {event} ~*~*~*~ Item: {event_item} Channel: {message_channel} ~*~*~*~ Time stamp: {message_ts}")
-        
-        #checking for replies
+
+        # Fetch replies to the message
         try:
-            #fetch replies to the message
             replies = client.conversations_replies(
                 channel=message_channel, 
                 ts=message_ts
             )
-            #store each message ID in an array
+            # Store each message ID in an array
             messages_to_delete = [message["ts"] for message in replies["messages"]]
 
-            #sort replies from newest to oldest
+            # Sort replies from newest to oldest
             messages_to_delete.sort(reverse=True)
 
-            #go through the replies one by one
+            # Delete each message in the replies array
             for ts in messages_to_delete:
                 try:
-                    #delete each message in the replies array
                     result = client.chat_delete(
                         channel=message_channel,
                         ts=ts
                     )
                     logger.info(result)
                 except SlackApiError as e:
-                    logger.error(f"Error eleting message {e}")
+                    logger.error(f"Error deleting message: {e}")
         except SlackApiError as e:
-            logger.error(f"Error fetching replies {e}")
+            logger.error(f"Error fetching replies: {e}")
         
 # Verify Slack request
 def verify_slack_request(request):
