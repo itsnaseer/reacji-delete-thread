@@ -20,42 +20,8 @@ from sqlalchemy.exc import SQLAlchemyError
 load_dotenv()
 logging.basicConfig(level=logging.DEBUG)
 
-# Initialize Bolt app
-
-def authorize(enterprise_id, team_id, user_id):
-    conn = engine.connect()
-    logger.debug(f"Authorize called with enterprise_id: {enterprise_id}, team_id: {team_id}, user_id: {user_id}")
-    try:
-        stmt = select(tokens_table.c.access_token).where(tokens_table.c.team_id == team_id)
-        result = conn.execute(stmt)
-        token = result.scalar()
-    except Exception as e:
-        logger.error(f"Error querying token in authorize function: {e}")
-        conn.close()
-        return None
-
-    conn.close()
-
-    if not token:
-        logger.error(f"Token not found for team_id: {team_id} in authorize function")
-        return None
-
-    logger.debug(f"Token found for team_id: {team_id} in authorize function: {token}")
-    return AuthorizeResult(
-        enterprise_id=enterprise_id,
-        team_id=team_id,
-        bot_token=token
-    )
-
-# Assign the authorize function to Bolt app
-bolt_app = App(
-    signing_secret=os.getenv("SLACK_SIGNING_SECRET"),
-    authorize=authorize
-)
-
 # Initialize Flask app
 app = Flask(__name__)
-handler = SlackRequestHandler(bolt_app)
 logger = logging.getLogger(__name__)
 
 # Database configuration
@@ -67,6 +33,7 @@ tokens_table = Table('tokens', metadata,
     Column('team_id', String, nullable=False),
     Column('user_id', String, primary_key=True, nullable=False),
     Column('access_token', String, nullable=False),
+    Column('bot_token', String, nullable=True),  # Add bot_token column if not already present
     Column('created_at', String, nullable=False),
     Column('updated_at', String, nullable=False)
 )
@@ -76,7 +43,42 @@ metadata.create_all(engine)
 store = {}
 
 # Slack client initialization
-client = WebClient(token=os.getenv("SLACK_CLIENT_ID"))  # Bot token used for OAuth flow
+client = WebClient()  # Initialize without token
+
+# Authorize function to fetch tokens from the database
+def authorize(enterprise_id, team_id, user_id):
+    conn = engine.connect()
+    logger.debug(f"Authorize called with enterprise_id: {enterprise_id}, team_id: {team_id}, user_id: {user_id}")
+    try:
+        stmt = select(tokens_table.c.access_token, tokens_table.c.bot_token).where(tokens_table.c.team_id == team_id)
+        result = conn.execute(stmt)
+        token_row = result.fetchone()
+        token = token_row['access_token'] if token_row else None
+        bot_token = token_row['bot_token'] if token_row else None
+    except Exception as e:
+        logger.error(f"Error querying token in authorize function: {e}")
+        conn.close()
+        return None
+
+    conn.close()
+
+    if not token or not bot_token:
+        logger.error(f"Token or bot_token not found for team_id: {team_id} in authorize function")
+        return None
+
+    logger.debug(f"Token found for team_id: {team_id} in authorize function: {token}")
+    return AuthorizeResult(
+        enterprise_id=enterprise_id,
+        team_id=team_id,
+        bot_token=bot_token
+    )
+
+# Initialize Bolt app with authorize function
+bolt_app = App(
+    signing_secret=os.getenv("SLACK_SIGNING_SECRET"),
+    authorize=authorize
+)
+handler = SlackRequestHandler(bolt_app)
 
 # Event handler for app_home_opened
 @bolt_app.event("app_home_opened")
@@ -204,8 +206,8 @@ def oauth_callback():
         team_id = response_data['team']['id']
         user_id = response_data['authed_user']['id']
         access_token = response_data['authed_user'].get('access_token')  # Use user access token if available
-        if not access_token:
-            access_token = response_data.get('access_token')  # Fallback to bot access token
+        bot_token = response_data.get('access_token')  # Fallback to bot access token
+
         created_at = str(time.time())
         updated_at = created_at
 
@@ -222,6 +224,7 @@ def oauth_callback():
                     team_id=team_id,
                     user_id=user_id,
                     access_token=access_token,
+                    bot_token=bot_token,
                     created_at=created_at,
                     updated_at=updated_at
                 ))
@@ -238,6 +241,7 @@ def oauth_callback():
                         conn.execute(tokens_table.update().values(
                             team_id=team_id,
                             access_token=access_token,
+                            bot_token=bot_token,
                             updated_at=updated_at
                         ).where(tokens_table.c.user_id == user_id))
                         trans.commit()
@@ -250,7 +254,7 @@ def oauth_callback():
                     trans.rollback()
                     app.logger.error(f"Error inserting token: {insert_error}")
                     return "OAuth flow failed", 500
-        
+
         # Send a message to the user's personal DM with the user token, user's name, and user ID
         try:
             user_info_response = client.users_info(user=user_id, token=access_token)
