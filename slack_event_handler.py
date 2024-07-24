@@ -182,7 +182,7 @@ def handle_reaction_added(client, say, event, logger):
     reaction = event["reaction"] 
     logger.info("Received a reaction event")
     if reaction == "flag-message":
-        say(f"Hey there <@{reaction['user']}>!")
+        say("Hey there !")
     
     # try:
     #     # Access team_id from the top-level payload if not present in event
