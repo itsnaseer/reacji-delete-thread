@@ -182,7 +182,16 @@ def handle_reaction_added(client, say, event):
     reaction = event["reaction"] 
     logger.debug("Received a reaction event")
     if reaction == "flag-message":
-        say(f"event details {event}")
+        
+        #delete_url = "https://slack.com/api/chat.delete"
+        event_item = event.get("item")
+        message_channel = event_item.get("channel")
+        message_ts = event_item.get("ts").replace('.','')
+        say(f"event details {event}\nitem{event_item}\nChannel: {message_channel}\nTime stamp: {message_ts}")
+            # delete_payload = {"channel": channel_id, "ts": reply["ts"]}
+            # delete_response = requests.post(delete_url, headers=headers, json=delete_payload)
+            # delete_response_data = delete_response.json()
+
     
     # try:
     #     # Access team_id from the top-level payload if not present in event
