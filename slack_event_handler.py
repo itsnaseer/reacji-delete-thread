@@ -68,6 +68,8 @@ def authorize(enterprise_id, team_id, user_id):
 
     logger.debug(f"Tokens found for team_id: {team_id} in authorize function: access_token: {access_token}, bot_token: {bot_token}")
     return AuthorizeResult(
+        enterprise_id=enterprise_id,
+        team_id=team_id,
         bot_token=bot_token,
         user_token=access_token
     )
