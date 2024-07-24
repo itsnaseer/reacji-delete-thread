@@ -18,6 +18,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 # Load environment variables from .env file
 load_dotenv()
+logging.basicConfig(level=logging.DEBUG)
 
 # Initialize Bolt app
 
@@ -112,9 +113,9 @@ def slack_events():
 
 # Event handler for reaction_added
 @bolt_app.event("reaction_added")
-def handle_reaction_added(client, say, event):
+def handle_reaction_added(client, event, logger):
     reaction = event["reaction"] 
-    logger.debug("Received a reaction event")
+    logger.debug(f"Received a reaction event {reaction}")
     if reaction == "delete-thread":
         event_item = event.get("item")
         message_channel = event_item.get("channel")
