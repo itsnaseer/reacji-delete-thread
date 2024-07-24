@@ -163,8 +163,9 @@ def update_home_tab(client, event, logger):
 
 #testing events
 @bolt_app.message("hello")
-def message_hello(message, say):
+def message_hello(message, say, logger):
     # say() sends a message to the channel where the event was triggered
+    logger.debug(f"Event received {message}")
     say(f"Hey there <@{message['user']}>!")
 
 
@@ -179,73 +180,73 @@ def slack_events():
 @bolt_app.event("reaction_added")
 def handle_reaction_added(client, event, logger):
     logger.debug(f"Received reaction: {event['reaction']}")
-    try:
-        if event["reaction"] == "delete-thread":
-            team_id = event.get("team_id")
-            if not team_id:
-                logger.error("team_id is missing in the event data")
-                return
+    # try:
+    if event["reaction"] == "delete-thread":
+        team_id = event.get("team_id")
+        if not team_id:
+            logger.error("team_id is missing in the event data")
+            return
 
-            item = event.get("item")
-            if not item:
-                logger.error("Item is missing in the event data")
-                return
+        item = event.get("item")
+        if not item:
+            logger.error("Item is missing in the event data")
+            return
 
-            channel_id = item.get("channel")
-            message_ts = item.get("ts")
+        channel_id = item.get("channel")
+        message_ts = item.get("ts")
 
-            if not channel_id or not message_ts:
-                logger.error("Channel ID or message timestamp is missing in the item data")
-                return
+        if not channel_id or not message_ts:
+            logger.error("Channel ID or message timestamp is missing in the item data")
+            return
 
-            # Retrieve token
-            conn = engine.connect()
-            logger.debug(f"Query token for team_id: {team_id}")
-            try:
-                stmt = select(tokens_table.c.access_token).where(tokens_table.c.team_id == team_id)
-                result = conn.execute(stmt)
-                token = result.scalar()
-            except Exception as e:
-                logger.error(f"Error querying token: {e}")
-                conn.close()
-                return
-
+        # Retrieve token
+        conn = engine.connect()
+        logger.debug(f"Query token for team_id: {team_id}")
+        try:
+            stmt = select(tokens_table.c.access_token).where(tokens_table.c.team_id == team_id)
+            result = conn.execute(stmt)
+            token = result.scalar()
+        except Exception as e:
+            logger.error(f"Error querying token: {e}")
             conn.close()
+            return
 
-            if not token:
-                logger.error(f"Token not found for team_id: {team_id}")
-                return
-            logger.debug(f"Using token: {token} for team_id: {team_id}")
+        conn.close()
 
-            headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
+        if not token:
+            logger.error(f"Token not found for team_id: {team_id}")
+            return
+        logger.debug(f"Using token: {token} for team_id: {team_id}")
 
-            # Get threaded messages
-            replies_url = "https://slack.com/api/conversations.replies"
-            replies_payload = {"channel": channel_id, "ts": message_ts}
-            replies_response = requests.get(replies_url, headers=headers, params=replies_payload)
-            replies_data = replies_response.json()
+        headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
 
-            if not replies_data["ok"]:
-                logger.error(f"Error retrieving threaded messages: {replies_data['error']}, channel: {channel_id}, message_id: {message_ts}")
+        # Get threaded messages
+        replies_url = "https://slack.com/api/conversations.replies"
+        replies_payload = {"channel": channel_id, "ts": message_ts}
+        replies_response = requests.get(replies_url, headers=headers, params=replies_payload)
+        replies_data = replies_response.json()
+
+        if not replies_data["ok"]:
+            logger.error(f"Error retrieving threaded messages: {replies_data['error']}, channel: {channel_id}, message_id: {message_ts}")
+            return
+        
+        # Delete threaded messages from newest to oldest
+        for reply in sorted(replies_data["messages"], key=lambda x: x["ts"], reverse=True):
+            delete_url = "https://slack.com/api/chat.delete"
+            delete_payload = {"channel": channel_id, "ts": reply["ts"]}
+            delete_response = requests.post(delete_url, headers=headers, json=delete_payload)
+            delete_response_data = delete_response.json()
+
+            if not delete_response_data["ok"]:
+                logger.error(f"Error deleting message {delete_response_data['error']}, channel: {channel_id}, message_id: {message_ts}")
                 return
             
-            # Delete threaded messages from newest to oldest
-            for reply in sorted(replies_data["messages"], key=lambda x: x["ts"], reverse=True):
-                delete_url = "https://slack.com/api/chat.delete"
-                delete_payload = {"channel": channel_id, "ts": reply["ts"]}
-                delete_response = requests.post(delete_url, headers=headers, json=delete_payload)
-                delete_response_data = delete_response.json()
+            logger.debug(f"Deleted message: {delete_response_data}")
 
-                if not delete_response_data["ok"]:
-                    logger.error(f"Error deleting message {delete_response_data['error']}, channel: {channel_id}, message_id: {message_ts}")
-                    return
-                
-                logger.debug(f"Deleted message: {delete_response_data}")
+        logger.debug("Message and thread deleted successfully")
 
-            logger.debug("Message and thread deleted successfully")
-
-    except Exception as e:
-        logger.error(f"Error handling reaction_added event: {e}")
+    # except Exception as e:
+    #     logger.error(f"Error handling reaction_added event: {e}")
 
 # Verify Slack request
 def verify_slack_request(request):
