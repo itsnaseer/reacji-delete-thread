@@ -182,25 +182,39 @@ def handle_reaction_added(client, say, event):
     reaction = event["reaction"] 
     logger.debug("Received a reaction event")
     if reaction == "delete-thread":
-        
-        #delete_url = "https://slack.com/api/chat.delete"
         event_item = event.get("item")
         message_channel = event_item.get("channel")
         message_ts = event_item.get("ts")
         say(f"*Message details*: {event}\n*Item*: {event_item}\n*Channel*: {message_channel}\n*Time stamp*: {message_ts}")
         
+        #checking for replies
+        try:
+            #fetch replies to the message
+            replies = client.conversations_replies(
+                channel=message_channel, 
+                ts=message_ts
+            )
+            #store each message ID in an array
+            messages_to_delete = [message["ts"] for message in replies["messages"]]
 
-        get_replies = client.conversation_replies(
-            channel=message_channel,
-            ts=message_ts
-            
-        )
-        say(f"Replies: {get_replies}")
+            #sort replies from newest to oldest
+            messages_to_delete.sort(reverse=True)
+
+            #go through the replies one by one
+            for ts in messages_to_delete:
+                try:
+                    #delete each message in the replies array
+                    result = client.chat_delete(
+                        channel=message_channel,
+                        ts=ts
+                    )
+                    logger.info(result)
+                except SlackApiError as e:
+                    logger.error(f"Error eleting message {e}")
+        except SlackApiError as e:
+            logger.error(f"Error fetching replies {e}")
         
-
-
-
-
+        # delete the original message
         try: 
             result = client.chat_delete(
                 channel=message_channel,
