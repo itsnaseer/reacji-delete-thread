@@ -51,8 +51,8 @@ def authorize(enterprise_id, team_id, user_id):
     try:
         stmt = select(tokens_table.c.access_token, tokens_table.c.bot_token).where(tokens_table.c.team_id == team_id)
         result = conn.execute(stmt).fetchone()
-        access_token = result[0] if result else None
-        bot_token = result[1] if result else None
+        access_token = result['access_token'] if result else None
+        bot_token = result['bot_token'] if result else None
     except Exception as e:
         logger.error(f"Error querying token in authorize function: {e}")
         conn.close()
@@ -65,12 +65,10 @@ def authorize(enterprise_id, team_id, user_id):
         return None
 
     logger.debug(f"Tokens found for team_id: {team_id} in authorize function: access_token: {access_token}, bot_token: {bot_token}")
-    return AuthorizeResult(
-        enterprise_id=enterprise_id,
-        team_id=team_id,
-        bot_token=bot_token,
-        user_token=access_token
-    )
+    return {
+        "bot_token": bot_token,
+        "user_token": access_token
+    }
 
 # Initialize Bolt app with authorize function
 bolt_app = App(
@@ -114,21 +112,23 @@ def slack_events():
 
 # Event handler for reaction_added
 @bolt_app.event("reaction_added")
-def handle_reaction_added(client, event, logger):
+def handle_reaction_added(client, event, context, logger):
     reaction = event["reaction"] 
-    logger.debug(f"Received a reaction event: {reaction}")
+    logger.debug(f"~*~*~*~ Received a reaction event: {reaction}")
 
     if reaction == "delete-thread":
         event_item = event.get("item")
         message_channel = event_item.get("channel")
         message_ts = event_item.get("ts")
-        logger.info(f"Message details: {event} ~*~*~*~ Item: {event_item} Channel: {message_channel} ~*~*~*~ Time stamp: {message_ts}")
+        user_token = context['user_token']
+        logger.info(f"~*~*~*~ Channel: {message_channel} ~*~*~*~ Time stamp: {message_ts}")
 
         # Fetch replies to the message
         try:
             replies = client.conversations_replies(
                 channel=message_channel, 
-                ts=message_ts
+                ts=message_ts,
+                token=user_token
             )
             # Store each message ID in an array
             messages_to_delete = [message["ts"] for message in replies["messages"]]
@@ -142,6 +142,7 @@ def handle_reaction_added(client, event, logger):
                     result = client.chat_delete(
                         channel=message_channel,
                         ts=ts
+                        token=user_token
                     )
                     logger.info(result)
                 except SlackApiError as e:
