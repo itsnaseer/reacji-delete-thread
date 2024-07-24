@@ -211,12 +211,14 @@ def oauth_callback():
         created_at = str(time.time())
         updated_at = created_at
 
+        app.logger.debug(f"Team ID: {team_id}, User ID: {user_id}, Access Token: {access_token}, Bot Token: {bot_token}")
+
         if not access_token:
             app.logger.error("Access token not found in OAuth response")
             return "OAuth flow failed", 500
 
         with engine.connect() as conn:
-            app.logger.info(f"Inserting/updating token for team {team_id}, user {user_id}, access_token: {access_token}")
+            app.logger.info(f"Inserting/updating token for team {team_id}, user {user_id}, access_token: {access_token}, bot_token: {bot_token}")
             trans = conn.begin()
             try:
                 # Try to insert the new token
