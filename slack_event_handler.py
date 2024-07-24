@@ -80,11 +80,12 @@ client = WebClient(token=os.getenv("SLACK_CLIENT_ID"))  # Bot token used for OAu
 # Event handler for app_home_opened
 @bolt_app.event("app_home_opened")
 def update_home_tab(client, event, logger):
+    
     try:
         # Use the bot token for publishing the home tab
-        bot_token = os.getenv("SLACK_BOT_TOKEN")
-        response = client.views_publish(
-            token=bot_token,
+        #bot_token = os.getenv("SLACK_BOT_TOKEN")
+        client.views_publish(
+        #    token=bot_token,
             user_id=event["user"],
             view={
                 "type": "home",
@@ -156,7 +157,7 @@ def update_home_tab(client, event, logger):
                 ]
             }
         )
-        logger.debug(f"Home tab published: {response}")
+        logger.info(f"Home tab published")
 
     except Exception as e:
         logger.error(f"Error publishing home tab: {e}")
@@ -214,86 +215,6 @@ def handle_reaction_added(client, say, event):
         except SlackApiError as e:
             logger.error(f"Error fetching replies {e}")
         
-        # delete the original message
-        # try: 
-        #     result = client.chat_delete(
-        #         channel=message_channel,
-        #         ts=message_ts 
-        #     )
-        #     logger.info(result)
-        # except SlackApiError as e:
-        #     logger.error(f"Error deleting message {e}")
-
-    
-    # try:
-    #     # Access team_id from the top-level payload if not present in event
-    #     team_id = event.get("team_id") or event["team"]
-    #     if not team_id:
-    #         logger.error("team_id is missing in the event data")
-    #         return
-
-    #     if event["reaction"] == "delete-thread":
-    #         item = event.get("item")
-    #         if not item:
-    #             logger.error("item is missing in the event data")
-    #             return
-
-    #         channel_id = item.get("channel")
-    #         message_ts = item.get("ts")
-
-    #         if not channel_id or not message_ts:
-    #             logger.error("channel_id or message_ts is missing in the event data")
-    #             return
-
-    #         # Retrieve token
-    #         conn = engine.connect()
-    #         logger.debug(f"Query token for team_id: {team_id}")
-    #         try:
-    #             stmt = select(tokens_table.c.access_token).where(tokens_table.c.team_id == team_id)
-    #             result = conn.execute(stmt)
-    #             token = result.scalar()
-    #         except Exception as e:
-    #             logger.error(f"Error querying token: {e}")
-    #             conn.close()
-    #             return
-
-    #         conn.close()
-
-    #         if not token:
-    #             logger.error(f"Token not found for team_id: {team_id}")
-    #             return
-    #         logger.debug(f"Using token: {token} for team_id: {team_id}")
-
-    #         headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
-
-    #         # Get threaded messages
-    #         replies_url = "https://slack.com/api/conversations.replies"
-    #         replies_payload = {"channel": channel_id, "ts": message_ts}
-    #         replies_response = requests.get(replies_url, headers=headers, params=replies_payload)
-    #         replies_data = replies_response.json()
-
-    #         if not replies_data["ok"]:
-    #             logger.error(f"Error retrieving threaded messages: {replies_data['error']}, channel: {channel_id}, message_id: {message_ts}")
-    #             return
-            
-    #         # Delete threaded messages from newest to oldest
-    #         for reply in sorted(replies_data["messages"], key=lambda x: x["ts"], reverse=True):
-    #             delete_url = "https://slack.com/api/chat.delete"
-    #             delete_payload = {"channel": channel_id, "ts": reply["ts"]}
-    #             delete_response = requests.post(delete_url, headers=headers, json=delete_payload)
-    #             delete_response_data = delete_response.json()
-
-    #             if not delete_response_data["ok"]:
-    #                 logger.error(f"Error deleting message: {delete_response_data['error']}, channel: {channel_id}, message_id: {message_ts}")
-    #                 return
-                
-    #             logger.debug(f"Deleted message: {delete_response_data}")
-
-    #         logger.debug("Message and thread deleted successfully")
-
-    # except Exception as e:
-    #     logger.error(f"Error handling reaction_added event: {e}")
-
 # Verify Slack request
 def verify_slack_request(request):
     timestamp = request.headers.get('X-Slack-Request-Timestamp')
