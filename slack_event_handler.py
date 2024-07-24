@@ -183,9 +183,9 @@ def handle_reaction_added(client, event, logger):
     # try:
     if event["reaction"] == "delete-thread":
         team_id = event.get("team_id")
-        if not team_id:
-            logger.error("team_id is missing in the event data")
-            return
+        # if not team_id:
+        #     logger.error("team_id is missing in the event data")
+        #     return
 
         item = event.get("item")
         if not item:
