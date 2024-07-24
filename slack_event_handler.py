@@ -51,8 +51,10 @@ def authorize(enterprise_id, team_id, user_id):
     try:
         stmt = select(tokens_table.c.access_token, tokens_table.c.bot_token).where(tokens_table.c.team_id == team_id)
         result = conn.execute(stmt).fetchone()
-        access_token = result['access_token'] if result else None
-        bot_token = result['bot_token'] if result else None
+        if result:
+            access_token, bot_token = result
+        else:
+            access_token = bot_token = None
     except Exception as e:
         logger.error(f"Error querying token in authorize function: {e}")
         conn.close()
