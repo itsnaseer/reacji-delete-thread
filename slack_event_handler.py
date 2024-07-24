@@ -193,8 +193,9 @@ def handle_reaction_added(client, say, event):
         get_replies = client.conversation_replies(
             channel=message_channel,
             ts=message_ts
-            say(f"Replies: {get_replies}")
+            
         )
+        say(f"Replies: {get_replies}")
         
 
 
