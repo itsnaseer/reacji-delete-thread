@@ -179,13 +179,13 @@ def slack_events():
 # Event handler for reaction_added
 @bolt_app.event("reaction_added")
 def handle_reaction_added(client, event, logger):
-    logger.debug(f"Received reaction: {event['reaction']}")
-    # try:
+    logger.debug(f"Received event: {event}")
+    
     if event["reaction"] == "delete-thread":
         team_id = event.get("team_id")
-        # if not team_id:
-        #     logger.error("team_id is missing in the event data")
-        #     return
+        if not team_id:
+            logger.error("team_id is missing in the event data")
+            return
 
         item = event.get("item")
         if not item:
@@ -244,9 +244,6 @@ def handle_reaction_added(client, event, logger):
             logger.debug(f"Deleted message: {delete_response_data}")
 
         logger.debug("Message and thread deleted successfully")
-
-    # except Exception as e:
-    #     logger.error(f"Error handling reaction_added event: {e}")
 
 # Verify Slack request
 def verify_slack_request(request):
