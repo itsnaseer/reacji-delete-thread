@@ -161,6 +161,13 @@ def update_home_tab(client, event, logger):
     except Exception as e:
         logger.error(f"Error publishing home tab: {e}")
 
+#testing events
+@bolt_app.message("hello")
+def message_hello(message, say):
+    # say() sends a message to the channel where the event was triggered
+    say(f"Hey there <@{message['user']}>!")
+
+
 # Event handler for Slack events and app config
 @app.route("/slack/events", methods=["POST"])
 def slack_events():
