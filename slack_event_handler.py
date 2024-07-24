@@ -67,10 +67,10 @@ def authorize(enterprise_id, team_id, user_id):
         return None
 
     logger.debug(f"Tokens found for team_id: {team_id} in authorize function: access_token: {access_token}, bot_token: {bot_token}")
-    return {
-        "bot_token": bot_token,
-        "user_token": access_token
-    }
+    return AuthorizeResult(
+        bot_token=bot_token,
+        user_token=access_token
+    )
 
 # Initialize Bolt app with authorize function
 bolt_app = App(
