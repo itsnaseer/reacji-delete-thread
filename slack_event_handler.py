@@ -163,7 +163,7 @@ def update_home_tab(client, event, logger):
 
 #testing events
 @bolt_app.message("hello")
-def message_hello(message, say, logger):
+def message_hello(message, say):
     # say() sends a message to the channel where the event was triggered
     logger.debug(f"Event received {message}")
     say(f"Hey there <@{message['user']}>!")
@@ -178,11 +178,11 @@ def slack_events():
 
 # Event handler for reaction_added
 @bolt_app.event("reaction_added")
-def handle_reaction_added(client, say, event, logger):
+def handle_reaction_added(client, say, event):
     reaction = event["reaction"] 
     logger.debug("Received a reaction event")
     if reaction == "flag-message":
-        say("Hey there !")
+        say(f"event details {event}")
     
     # try:
     #     # Access team_id from the top-level payload if not present in event
