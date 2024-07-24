@@ -15,7 +15,7 @@ from verify_slack_request import verify_slack_request
 
 # Load environment variables from .env file
 load_dotenv()
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -147,7 +147,7 @@ def handle_reaction_added(client, event, context, logger):
         message_channel = event_item.get("channel")
         message_ts = event_item.get("ts")
         user_token = context['user_token']
-        logger.info(f"~*~*~*~ Channel: {message_channel} ~*~*~*~ Time stamp: {message_ts}")
+        logger.debug(f"~*~*~*~ Channel: {message_channel} ~*~*~*~ Time stamp: {message_ts}")
 
         # Fetch replies to the message
         try:
