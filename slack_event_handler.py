@@ -2,19 +2,18 @@ import os
 import time
 import hmac
 import hashlib
+import requests
+import uuid
 import logging
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, redirect
 from slack_bolt import App
+from slack_bolt.authorization import AuthorizeResult
 from slack_bolt.adapter.flask import SlackRequestHandler
 from slack_sdk import WebClient
-from sqlalchemy import create_engine, Table, Column, String, MetaData
-
-# Importing functions from other modules
-from authorize import authorize as authorize_function
-from oauth_callback import oauth_callback as oauth_callback_function
-from install import install as install_function
-from verify_slack_request import verify_slack_request
+from slack_sdk.errors import SlackApiError
 from dotenv import load_dotenv
+from requests.auth import HTTPBasicAuth
+from sqlalchemy import create_engine, Table, Column, String, MetaData
 
 # Load environment variables from .env file
 load_dotenv()
@@ -33,25 +32,31 @@ tokens_table = Table('tokens', metadata,
     Column('team_id', String, nullable=False),
     Column('user_id', String, primary_key=True, nullable=False),
     Column('access_token', String, nullable=False),
-    Column('bot_token', String, nullable=True),  # Add bot_token column if not already present
+    Column('bot_token', String, nullable=True),
     Column('created_at', String, nullable=False),
     Column('updated_at', String, nullable=False)
 )
 
 metadata.create_all(engine)
 
-# Initialize Slack client
-client = WebClient()  # Initialize without token
+store = {}
+
+# Importing functions from other modules
+from authorize import authorize as authorize_function
+from oauth_callback import oauth_callback as oauth_callback_function
+from install import install as install_function
+from verify_slack_request import verify_slack_request
 
 # Initialize Bolt app with authorize function
+def custom_authorize(enterprise_id, team_id, user_id):
+    return AuthorizeResult.from_dict(authorize_function(enterprise_id, team_id, user_id, engine, tokens_table))
+
 bolt_app = App(
     signing_secret=os.getenv("SLACK_SIGNING_SECRET"),
-    authorize=lambda *args, **kwargs: authorize_function(*args, engine=engine, tokens_table=tokens_table, **kwargs)
+    authorize=custom_authorize
 )
 handler = SlackRequestHandler(bolt_app)
 
-
-store = {}
 
 # Event handler for app_home_opened
 @bolt_app.event("app_home_opened")
@@ -269,15 +274,17 @@ def repeat_text(ack, logger, channel_id, client, context):
     except SlackApiError as e:
         logger.error("Error fetching conversation history: {}".format(e))
 
-# Routes for other functionalities
+# Install route
 @app.route('/install', methods=['GET'])
 def install_route():
-    return install(store)
+    return install_function(store)
 
+# OAuth callback route
 @app.route('/oauth/callback', methods=['GET'])
 def oauth_callback_route():
-    return oauth_callback(engine, tokens_table, app, client, store)
+    return oauth_callback_function(engine, tokens_table, app, store)
 
+# Run Flask app
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 3000))
     app.run(debug=True, host='0.0.0.0', port=port)

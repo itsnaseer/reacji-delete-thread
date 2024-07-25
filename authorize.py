@@ -1,6 +1,5 @@
 import logging
 from sqlalchemy import select
-from slack_bolt.authorization import AuthorizeResult
 
 def authorize(enterprise_id, team_id, user_id, engine, tokens_table):
     conn = engine.connect()
