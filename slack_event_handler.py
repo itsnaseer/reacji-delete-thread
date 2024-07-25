@@ -202,7 +202,7 @@ def repeat_text(ack, logger, channel_id, client, context):
 
         # Store each message ID in an array
         messages_to_delete = [message["ts"] for message in conversation_history["messages"]]
-
+        logger.info(f"messages to delete: {messages_to_delete}")
         for ts in messages_to_delete:
                 try:
                     result = client.chat_delete(
@@ -210,7 +210,7 @@ def repeat_text(ack, logger, channel_id, client, context):
                         ts=ts,
                         token=user_token
                     )
-                    logger.info(result)
+                    # logger.info(result)
                 except SlackApiError as e:
                     logger.error(f"Error deleting message: {e}")
 
