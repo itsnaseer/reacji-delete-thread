@@ -183,9 +183,9 @@ def clear_channel_router():
 
 # The echo command simply echoes on command
 @bolt_app.command("/clear-channel")
-def repeat_text(ack, logger, text, channel_id, client):
+def repeat_text(ack, logger, channel_id, client):
     ack()
-    logger.info(f"command received {text} ~~~~ channel: {channel_id}")
+    logger.info(f"~~~~ channel: {channel_id}")
     # Store conversation history
     conversation_history = []
 
