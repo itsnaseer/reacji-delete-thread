@@ -176,6 +176,13 @@ def handle_reaction_added(client, event, context, logger):
         except SlackApiError as e:
             logger.error(f"Error fetching replies: {e}")
         
+# The echo command simply echoes on command
+@bolt_app.command("/clear-channel")
+def repeat_text(ack, respond, command):
+    # Acknowledge command request
+    ack()
+    respond(f"{command['text']}")
+
 # Route for install
 @app.route('/install', methods=['GET'])
 def install_route():
