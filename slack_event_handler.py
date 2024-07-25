@@ -178,7 +178,8 @@ def handle_reaction_added(client, event, context, logger):
         
 # The echo command simply echoes on command
 @bolt_app.command("/clear-channel")
-def repeat_text(ack, respond, command):
+def repeat_text(ack, respond, command, logger):
+    logger.info("command received")
     # Acknowledge command request
     ack()
     respond(f"{command['text']}")
