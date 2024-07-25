@@ -181,9 +181,9 @@ def handle_reaction_added(client, event, context, logger):
 def clear_channel_router():
     return handler.handle(request)
 
-# The echo command simply echoes on command
+# The clear-channel slash command handler
 @bolt_app.command("/clear-channel")
-def clear_channel_history(ack, logger, channel_id, client, context):
+def repeat_text(ack, logger, channel_id, client, context):
     ack()
     user_token = context['user_token']
     logger.info(f"~~~~ channel: {channel_id}")
@@ -209,8 +209,9 @@ def clear_channel_history(ack, logger, channel_id, client, context):
         # Store each message ID in an array
         messages_to_delete = [message["ts"] for message in conversation_history]
         logger.info(f"messages to delete: {messages_to_delete}")
-        
-        for ts in messages_to_delete:
+
+        # Function to delete a message
+        def delete_message(channel_id, ts):
             try:
                 result = client.chat_delete(
                     channel=channel_id,
@@ -220,6 +221,29 @@ def clear_channel_history(ack, logger, channel_id, client, context):
                 logger.info(f"Deleted message with timestamp {ts}")
             except SlackApiError as e:
                 logger.error(f"Error deleting message: {e}")
+
+        for message in conversation_history:
+            # Delete the main message
+            delete_message(channel_id, message["ts"])
+
+            # If the message has a thread, delete the replies
+            if message.get("thread_ts"):
+                has_more_replies = True
+                next_reply_cursor = None
+                while has_more_replies:
+                    replies_result = client.conversations_replies(
+                        token=user_token,
+                        channel=channel_id,
+                        ts=message["thread_ts"],
+                        cursor=next_reply_cursor
+                    )
+                    replies = replies_result["messages"]
+                    next_reply_cursor = replies_result.get("response_metadata", {}).get("next_cursor")
+                    has_more_replies = bool(next_reply_cursor)
+
+                    # Delete each reply
+                    for reply in replies:
+                        delete_message(channel_id, reply["ts"])
 
     except SlackApiError as e:
         logger.error("Error fetching conversation history: {}".format(e))
