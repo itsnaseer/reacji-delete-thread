@@ -200,8 +200,22 @@ def repeat_text(ack, logger, channel_id, client, context):
         logger.info(f"channel within the try loop: {channel_id}")
         conversation_history = result["messages"]
 
+        # Store each message ID in an array
+        messages_to_delete = [message["ts"] for message in conversation_history["messages"]]
+
+        for ts in messages_to_delete:
+                try:
+                    result = client.chat_delete(
+                        channel=channel_id,
+                        ts=ts,
+                        token=user_token
+                    )
+                    logger.info(result)
+                except SlackApiError as e:
+                    logger.error(f"Error deleting message: {e}")
+
         # Print results
-        logger.info("{} messages found in {}".format(len(conversation_history), channel_id))
+        # logger.info("{} messages found in {}".format(len(conversation_history), channel_id))
 
     except SlackApiError as e:
         logger.error("Error creating conversation: {}".format(e))
