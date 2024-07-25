@@ -1,12 +1,12 @@
 import time
-from flask import request
-from requests.auth import HTTPBasicAuth
-from slack_sdk import WebClient
+import requests
+from sqlalchemy import insert, update
 from slack_sdk.errors import SlackApiError
 
-client = WebClient()
-
 def oauth_callback(engine, tokens_table, app, client):
+    from flask import request
+    from requests.auth import HTTPBasicAuth
+
     state = request.args.get('state')
     code = request.args.get('code')
 
