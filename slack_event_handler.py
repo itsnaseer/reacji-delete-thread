@@ -183,14 +183,9 @@ def clear_channel_router():
 
 # The echo command simply echoes on command
 @bolt_app.command("/clear-channel")
-def repeat_text(say, command, logger, client, event):
-    logger.info("command received")
-    # Store conversation history
-    conversation_history = []
-    # ID of the channel you want to send the message to
-    message_channel = event.get("channel")
-
-    say(f"response: {command['text']}\nmessage: {message_channel}")
+def repeat_text(ack, logger, event):
+    ack()
+    logger.info(f"command received {event}")
 
 # Route for install
 @app.route('/install', methods=['GET'])
