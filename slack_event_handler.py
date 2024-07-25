@@ -61,7 +61,14 @@ def update_home_tab(client, event, logger):
                         "type": "section",
                         "text": {
                             "type": "mrkdwn",
-                            "text": "Use this app to delete messages (+ threaded replies) and generate the user token (`xoxp-1234567890`) for your current user. The user token is used to delete the messages and impersonate users in SBN workflows. Note: This app replaces <https://salesforce.enterprise.slack.com/docs/T01G0063H29/F0741QXLV0D|User Token Generator> (canvas will be transitioned)"
+                            "text": "*Delete Messages*: Use this app to delete messages (+ threaded replies) and generate the user token (`xoxp-1234567890`) for your current user."
+                        }
+                    },
+                    {
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": "*Clear Channel History*: If you want to clear a channel's entire history, use the `/clear-channel` command. \n:warning: *WARNING*: This cannot be reversed unless you have fine-tuned your retention settings.  "
                         }
                     },
                     {
@@ -117,7 +124,7 @@ def update_home_tab(client, event, logger):
                         "elements": [
                             {
                                 "type": "mrkdwn",
-                                "text": "Are you looking for more comprehensive guidance? Check out the <https://salesforce.enterprise.slack.com/docs/T01G0063H29/F07BHJ16UAE|App Canvas in Giant Speck>"
+                                "text": "Are you looking for more comprehensive guidance? Check out the <https://salesforce.enterprise.slack.com/docs/T01G0063H29/F07BHJ16UAE|App Canvas in Giant Speck>\n\nNote: This app replaces <https://salesforce.enterprise.slack.com/docs/T01G0063H29/F0741QXLV0D|User Token Generator> (canvas will be transitioned)"
                             }
                         ]
                     }
