@@ -75,4 +75,35 @@ def oauth_callback(engine, tokens_table, app, client, store):
                             updated_at=updated_at
                         ).where(tokens_table.c.user_id == user_id))
                         trans.commit()
-                        app.logger.info(f"Successfully updated
+                        app.logger.info(f"Successfully updated token for team {team_id}, user {user_id}")
+                    except Exception as update_error:
+                        trans.rollback()
+                        app.logger.error(f"Error updating token: {update_error}")
+                        return "OAuth flow failed", 500
+                else:
+                    trans.rollback()
+                    app.logger.error(f"Error inserting token: {insert_error}")
+                    return "OAuth flow failed", 500
+
+        # Send a message to the user's personal DM with the user token, user's name, and user ID
+        try:
+            user_info_response = client.users_info(user=user_id, token=access_token)
+            if user_info_response["ok"]:
+                user_name = user_info_response["user"]["name"]
+                message_text = f"User Token: {access_token}\nUser Name: {user_name}\nUser ID: {user_id}"
+
+                client.chat_postMessage(
+                    channel=user_id,
+                    text=message_text,
+                    token=access_token
+                )
+                app.logger.info(f"Successfully sent DM to user {user_id}")
+            else:
+                app.logger.error(f"Error retrieving user info: {user_info_response['error']}")
+        except SlackApiError as e:
+            app.logger.error(f"Slack API Error: {e.response['error']}")
+
+        return "OAuth flow completed", 200
+    else:
+        app.logger.error(f"OAuth response error: {response_data}")
+        return "OAuth flow failed", 400
