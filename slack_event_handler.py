@@ -1,18 +1,16 @@
 import os
 import time
-import hmac
-import hashlib
 import logging
 from flask import Flask, request, jsonify
 from slack_bolt import App
 from slack_bolt.adapter.flask import SlackRequestHandler
-from slack_sdk import WebClient
+from slack_sdk.errors import SlackApiError
+from dotenv import load_dotenv
 from sqlalchemy import create_engine, Table, Column, String, MetaData
 
-from dotenv import load_dotenv
-from authorize import authorize
-from oauth_callback import oauth_callback
 from install import install
+from oauth_callback import oauth_callback
+from authorize import authorize
 from verify_slack_request import verify_slack_request
 
 # Load environment variables from .env file
@@ -32,24 +30,21 @@ tokens_table = Table('tokens', metadata,
     Column('team_id', String, nullable=False),
     Column('user_id', String, primary_key=True, nullable=False),
     Column('access_token', String, nullable=False),
-    Column('bot_token', String, nullable=True),  # Add bot_token column if not already present
+    Column('bot_token', String, nullable=True),
     Column('created_at', String, nullable=False),
     Column('updated_at', String, nullable=False)
 )
 
 metadata.create_all(engine)
 
-# Initialize Slack client
-client = WebClient()  # Initialize without token
+store = {}
 
 # Initialize Bolt app with authorize function
 bolt_app = App(
     signing_secret=os.getenv("SLACK_SIGNING_SECRET"),
-    authorize=authorize
+    authorize=lambda enterprise_id, team_id, user_id: authorize(engine, tokens_table, enterprise_id, team_id, user_id)
 )
 handler = SlackRequestHandler(bolt_app)
-
-store = {}
 
 # Event handler for app_home_opened
 @bolt_app.event("app_home_opened")
@@ -73,14 +68,7 @@ def update_home_tab(client, event, logger):
                         "type": "section",
                         "text": {
                             "type": "mrkdwn",
-                            "text": "*Clear Channel History*: If you want to clear a channel's entire history, use the `/clear-channel` command.  "
-                        }
-                    },
-                    {
-                        "type": "section",
-                        "text": {
-                            "type": "mrkdwn",
-                            "text": ":warning: Deleting messages cannot be reversed unless you have fine-tuned your retention settings."
+                            "text": "*Clear Channel History*: If you want to clear a channel's entire history, use the `/clear-channel` command. \n:warning: *WARNING*: This cannot be reversed unless you have fine-tuned your retention settings.  "
                         }
                     },
                     {
@@ -166,7 +154,7 @@ def handle_reaction_added(client, event, context, logger):
         message_channel = event_item.get("channel")
         message_ts = event_item.get("ts")
         user_token = context['user_token']
-        logger.info(f"~*~*~*~ Channel: {message_channel} ~*~*~*~ Time stamp: {message_ts}")
+        logger.debug(f"~*~*~*~ Channel: {message_channel} ~*~*~*~ Time stamp: {message_ts}")
 
         # Fetch replies to the message
         try:
@@ -194,7 +182,7 @@ def handle_reaction_added(client, event, context, logger):
                     logger.error(f"Error deleting message: {e}")
         except SlackApiError as e:
             logger.error(f"Error fetching replies: {e}")
-
+        
 #route slash command from flask to bolt
 @app.route("/slack/clear-channel", methods=["POST"])
 def clear_channel_router():
@@ -267,14 +255,17 @@ def repeat_text(ack, logger, channel_id, client, context):
     except SlackApiError as e:
         logger.error("Error fetching conversation history: {}".format(e))
 
-# Routes for other functionalities
+
+
+# Route for install
 @app.route('/install', methods=['GET'])
 def install_route():
-    return install(store)
+    return install()
 
+# OAUTH Callback route
 @app.route('/oauth/callback', methods=['GET'])
 def oauth_callback_route():
-    return oauth_callback(engine, tokens_table, app, client, store)
+    return oauth_callback(engine, tokens_table, app, client)
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 3000))
