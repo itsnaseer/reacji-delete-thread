@@ -183,9 +183,9 @@ def clear_channel_router():
 
 # The echo command simply echoes on command
 @bolt_app.command("/clear-channel")
-def repeat_text(ack, logger, event):
+def repeat_text(ack, logger, text):
     ack()
-    logger.info(f"command received {event}")
+    logger.info(f"command received {text}")
 
 # Route for install
 @app.route('/install', methods=['GET'])
