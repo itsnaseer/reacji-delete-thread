@@ -194,7 +194,7 @@ def repeat_text(ack, logger, text, channel_id, client):
         # conversations.history returns the first 100 messages by default
         # These results are paginated, see: https://api.slack.com/methods/conversations.history$pagination
         result = client.conversations_history(channel=channel_id)
-
+        logger.info(f"channel within the try loop: {channel_id}")
         conversation_history = result["messages"]
 
         # Print results
