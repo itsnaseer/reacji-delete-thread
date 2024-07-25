@@ -183,8 +183,9 @@ def clear_channel_router():
 
 # The echo command simply echoes on command
 @bolt_app.command("/clear-channel")
-def repeat_text(ack, logger, channel_id, client):
+def repeat_text(ack, logger, channel_id, client, context):
     ack()
+    user_token = context['user_token']
     logger.info(f"~~~~ channel: {channel_id}")
     # Store conversation history
     conversation_history = []
@@ -193,7 +194,9 @@ def repeat_text(ack, logger, channel_id, client):
         # Call the conversations.history method using the WebClient
         # conversations.history returns the first 100 messages by default
         # These results are paginated, see: https://api.slack.com/methods/conversations.history$pagination
-        result = client.conversations_history(channel=channel_id)
+        result = client.conversations_history(
+            token= user_token,
+            channel=channel_id)
         logger.info(f"channel within the try loop: {channel_id}")
         conversation_history = result["messages"]
 
