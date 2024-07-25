@@ -13,6 +13,7 @@ tokens_table = Table('tokens', metadata,
     Column('team_id', String, primary_key=True),
     Column('user_id', String),
     Column('access_token', String),
+    Column('bot_token', String, nullable=False),  
     Column('created_at', String),
     Column('updated_at', String)
 )
