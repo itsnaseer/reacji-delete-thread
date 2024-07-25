@@ -183,43 +183,46 @@ def clear_channel_router():
 
 # The echo command simply echoes on command
 @bolt_app.command("/clear-channel")
-def repeat_text(ack, logger, channel_id, client, context):
+def clear_channel_history(ack, logger, channel_id, client, context):
     ack()
     user_token = context['user_token']
     logger.info(f"~~~~ channel: {channel_id}")
+    
     # Store conversation history
     conversation_history = []
+    has_more = True
+    next_cursor = None
 
     try:
-        # Call the conversations.history method using the WebClient
-        # conversations.history returns the first 100 messages by default
-        # These results are paginated, see: https://api.slack.com/methods/conversations.history$pagination
-        result = client.conversations_history(
-            token= user_token,
-            channel=channel_id)
-        logger.info(f"channel within the try loop: {channel_id}")
-        conversation_history = result["messages"]
-
+        while has_more:
+            # Call the conversations.history method using the WebClient
+            result = client.conversations_history(
+                token=user_token,
+                channel=channel_id,
+                cursor=next_cursor
+            )
+            messages = result["messages"]
+            conversation_history.extend(messages)
+            next_cursor = result.get("response_metadata", {}).get("next_cursor")
+            has_more = bool(next_cursor)
+        
         # Store each message ID in an array
-        messages_to_delete = [message["ts"] for message in conversation_history["messages"]]
+        messages_to_delete = [message["ts"] for message in conversation_history]
         logger.info(f"messages to delete: {messages_to_delete}")
+        
         for ts in messages_to_delete:
-                try:
-                    result = client.chat_delete(
-                        channel=channel_id,
-                        ts=ts,
-                        token=user_token
-                    )
-                    # logger.info(result)
-                except SlackApiError as e:
-                    logger.error(f"Error deleting message: {e}")
-
-        # Print results
-        # logger.info("{} messages found in {}".format(len(conversation_history), channel_id))
+            try:
+                result = client.chat_delete(
+                    channel=channel_id,
+                    ts=ts,
+                    token=user_token
+                )
+                logger.info(f"Deleted message with timestamp {ts}")
+            except SlackApiError as e:
+                logger.error(f"Error deleting message: {e}")
 
     except SlackApiError as e:
-        logger.error("Error creating conversation: {}".format(e))
-
+        logger.error("Error fetching conversation history: {}".format(e))
 
 
 
