@@ -67,7 +67,14 @@ def update_home_tab(client, event, logger):
                         "type": "section",
                         "text": {
                             "type": "mrkdwn",
-                            "text": "*Clear Channel History*: If you want to clear a channel's entire history, use the `/clear-channel` command. \n:warning: *WARNING*: This cannot be reversed unless you have fine-tuned your retention settings.  "
+                            "text": "*Clear Channel History*: If you want to clear a channel's entire history, use the `/clear-channel` command.  "
+                        }
+                    },
+                    {
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": ":warning: Deleting messages cannot be reversed unless you have fine-tuned your retention settings."
                         }
                     },
                     {
