@@ -3,7 +3,7 @@ import requests
 from sqlalchemy import insert, update
 from slack_sdk.errors import SlackApiError
 
-def oauth_callback(engine, tokens_table, app, client):
+def oauth_callback(engine, tokens_table, app, client, store):
     from flask import request
     from requests.auth import HTTPBasicAuth
 

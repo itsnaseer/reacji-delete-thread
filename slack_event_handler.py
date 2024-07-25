@@ -274,7 +274,7 @@ def install_route():
 # OAUTH Callback route
 @app.route('/oauth/callback', methods=['GET'])
 def oauth_callback_route():
-    return oauth_callback(engine, tokens_table, app, client)
+    return oauth_callback(engine, tokens_table, app, client, store)
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 3000))
