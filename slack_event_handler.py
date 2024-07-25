@@ -176,6 +176,11 @@ def handle_reaction_added(client, event, context, logger):
         except SlackApiError as e:
             logger.error(f"Error fetching replies: {e}")
         
+#route slash command from flask to bolt
+@app.route("/slack/clear-channel", methods=["POST"])
+def clear_channel_router():
+    return handler.handle(request)
+
 # The echo command simply echoes on command
 @bolt_app.command("/clear-channel")
 def repeat_text(ack, respond, command, logger):
