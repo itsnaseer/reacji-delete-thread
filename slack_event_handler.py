@@ -177,15 +177,15 @@ def handle_reaction_added(client, event, context, logger):
             logger.error(f"Error fetching replies: {e}")
         
 #route slash command from flask to bolt
-@app.route("/slack/clear-channel", methods=["POST"])
-def clear_channel_router():
-    return handler.handle(request)
+# @app.route("/slack/clear-channel", methods=["POST"])
+# def clear_channel_router():
+#     return handler.handle(request)
 
 # The echo command simply echoes on command
 @bolt_app.command("/clear-channel")
-def repeat_text(ack, logger, text):
+def repeat_text(ack, logger, text, channel_id):
     ack()
-    logger.info(f"command received {text}")
+    logger.info(f"command received {text} ~~~~ channel: {channel_id}")
 
 # Route for install
 @app.route('/install', methods=['GET'])
