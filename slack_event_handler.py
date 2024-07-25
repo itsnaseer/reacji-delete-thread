@@ -183,9 +183,28 @@ def clear_channel_router():
 
 # The echo command simply echoes on command
 @bolt_app.command("/clear-channel")
-def repeat_text(ack, logger, text, channel_id):
+def repeat_text(ack, logger, text, channel_id, client):
     ack()
     logger.info(f"command received {text} ~~~~ channel: {channel_id}")
+    # Store conversation history
+    conversation_history = []
+
+    try:
+        # Call the conversations.history method using the WebClient
+        # conversations.history returns the first 100 messages by default
+        # These results are paginated, see: https://api.slack.com/methods/conversations.history$pagination
+        result = client.conversations_history(channel=channel_id)
+
+        conversation_history = result["messages"]
+
+        # Print results
+        logger.info("{} messages found in {}".format(len(conversation_history), channel_id))
+
+    except SlackApiError as e:
+        logger.error("Error creating conversation: {}".format(e))
+
+
+
 
 # Route for install
 @app.route('/install', methods=['GET'])
