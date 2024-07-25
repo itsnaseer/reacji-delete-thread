@@ -2,10 +2,9 @@ import logging
 from sqlalchemy import select
 from slack_bolt.authorization import AuthorizeResult
 
-logger = logging.getLogger(__name__)
-
-def authorize(enterprise_id, team_id, user_id):
+def authorize(enterprise_id, team_id, user_id, engine, tokens_table):
     conn = engine.connect()
+    logger = logging.getLogger(__name__)
     logger.debug(f"Authorize called with enterprise_id: {enterprise_id}, team_id: {team_id}, user_id: {user_id}")
     try:
         stmt = select(tokens_table.c.access_token, tokens_table.c.bot_token).where(tokens_table.c.team_id == team_id)
@@ -26,9 +25,9 @@ def authorize(enterprise_id, team_id, user_id):
         return None
 
     logger.debug(f"Tokens found for team_id: {team_id} in authorize function: access_token: {access_token}, bot_token: {bot_token}")
-    return AuthorizeResult(
-        enterprise_id=enterprise_id,
-        team_id=team_id,
-        bot_token=bot_token,
-        user_token=access_token
-    )
+    return {
+        'enterprise_id': enterprise_id,
+        'team_id': team_id,
+        'bot_token': bot_token,
+        'user_token': access_token
+    }

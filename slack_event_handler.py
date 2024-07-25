@@ -9,11 +9,12 @@ from slack_bolt.adapter.flask import SlackRequestHandler
 from slack_sdk import WebClient
 from sqlalchemy import create_engine, Table, Column, String, MetaData
 
-from dotenv import load_dotenv
-from authorize import authorize
-from oauth_callback import oauth_callback
-from install import install
+# Importing functions from other modules
+from authorize import authorize as authorize_function
+from oauth_callback import oauth_callback as oauth_callback_function
+from install import install as install_function
 from verify_slack_request import verify_slack_request
+from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv()
@@ -45,9 +46,10 @@ client = WebClient()  # Initialize without token
 # Initialize Bolt app with authorize function
 bolt_app = App(
     signing_secret=os.getenv("SLACK_SIGNING_SECRET"),
-    authorize=authorize
+    authorize=lambda *args, **kwargs: authorize_function(*args, engine=engine, tokens_table=tokens_table, **kwargs)
 )
 handler = SlackRequestHandler(bolt_app)
+
 
 store = {}
 
