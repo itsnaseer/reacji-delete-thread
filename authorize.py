@@ -4,7 +4,7 @@ from slack_bolt.authorization import AuthorizeResult
 
 logger = logging.getLogger(__name__)
 
-def authorize(engine, tokens_table, enterprise_id, team_id, user_id):
+def authorize(enterprise_id, team_id, user_id):
     conn = engine.connect()
     logger.debug(f"Authorize called with enterprise_id: {enterprise_id}, team_id: {team_id}, user_id: {user_id}")
     try:

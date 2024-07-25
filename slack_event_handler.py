@@ -38,6 +38,9 @@ metadata.create_all(engine)
 
 store = {}
 
+# Slack client initialization
+client = WebClient()  # Initialize without token
+
 # Initialize Bolt app with authorize function
 bolt_app = App(
     signing_secret=os.getenv("SLACK_SIGNING_SECRET"),
