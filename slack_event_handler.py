@@ -15,7 +15,7 @@ from verify_slack_request import verify_slack_request
 
 # Load environment variables from .env file
 load_dotenv()
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 
 # Initialize Flask app
 app = Flask(__name__)
