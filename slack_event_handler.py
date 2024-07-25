@@ -1,6 +1,9 @@
 import os
+import time
+import hmac
+import hashlib
 import logging
-from flask import Flask, request, jsonify, redirect
+from flask import Flask, request, jsonify
 from slack_bolt import App
 from slack_bolt.adapter.flask import SlackRequestHandler
 from slack_sdk import WebClient
@@ -29,14 +32,12 @@ tokens_table = Table('tokens', metadata,
     Column('team_id', String, nullable=False),
     Column('user_id', String, primary_key=True, nullable=False),
     Column('access_token', String, nullable=False),
-    Column('bot_token', String, nullable=True),
+    Column('bot_token', String, nullable=True),  # Add bot_token column if not already present
     Column('created_at', String, nullable=False),
     Column('updated_at', String, nullable=False)
 )
 
 metadata.create_all(engine)
-
-store = {}
 
 # Initialize Slack client
 client = WebClient()  # Initialize without token
@@ -44,9 +45,11 @@ client = WebClient()  # Initialize without token
 # Initialize Bolt app with authorize function
 bolt_app = App(
     signing_secret=os.getenv("SLACK_SIGNING_SECRET"),
-    authorize=lambda enterprise_id, team_id, user_id: authorize(engine, tokens_table, enterprise_id, team_id, user_id)
+    authorize=authorize
 )
 handler = SlackRequestHandler(bolt_app)
+
+store = {}
 
 # Event handler for app_home_opened
 @bolt_app.event("app_home_opened")
@@ -163,7 +166,7 @@ def handle_reaction_added(client, event, context, logger):
         message_channel = event_item.get("channel")
         message_ts = event_item.get("ts")
         user_token = context['user_token']
-        logger.debug(f"~*~*~*~ Channel: {message_channel} ~*~*~*~ Time stamp: {message_ts}")
+        logger.info(f"~*~*~*~ Channel: {message_channel} ~*~*~*~ Time stamp: {message_ts}")
 
         # Fetch replies to the message
         try:
@@ -191,87 +194,12 @@ def handle_reaction_added(client, event, context, logger):
                     logger.error(f"Error deleting message: {e}")
         except SlackApiError as e:
             logger.error(f"Error fetching replies: {e}")
-        
-#route slash command from flask to bolt
-@app.route("/slack/clear-channel", methods=["POST"])
-def clear_channel_router():
-    return handler.handle(request)
 
-# The clear-channel slash command handler
-@bolt_app.command("/clear-channel")
-def repeat_text(ack, logger, channel_id, client, context):
-    ack()
-    user_token = context['user_token']
-    logger.info(f"~~~~ channel: {channel_id}")
-    
-    # Store conversation history
-    conversation_history = []
-    has_more = True
-    next_cursor = None
-
-    try:
-        while has_more:
-            # Call the conversations.history method using the WebClient
-            result = client.conversations_history(
-                token=user_token,
-                channel=channel_id,
-                cursor=next_cursor
-            )
-            messages = result["messages"]
-            conversation_history.extend(messages)
-            next_cursor = result.get("response_metadata", {}).get("next_cursor")
-            has_more = bool(next_cursor)
-        
-        # Store each message ID in an array
-        messages_to_delete = [message["ts"] for message in conversation_history]
-        logger.info(f"messages to delete: {messages_to_delete}")
-
-        # Function to delete a message
-        def delete_message(channel_id, ts):
-            try:
-                result = client.chat_delete(
-                    channel=channel_id,
-                    ts=ts,
-                    token=user_token
-                )
-                logger.info(f"Deleted message with timestamp {ts}")
-            except SlackApiError as e:
-                logger.error(f"Error deleting message: {e}")
-
-        for message in conversation_history:
-            # Delete the main message
-            delete_message(channel_id, message["ts"])
-
-            # If the message has a thread, delete the replies
-            if message.get("thread_ts"):
-                has_more_replies = True
-                next_reply_cursor = None
-                while has_more_replies:
-                    replies_result = client.conversations_replies(
-                        token=user_token,
-                        channel=channel_id,
-                        ts=message["thread_ts"],
-                        cursor=next_reply_cursor
-                    )
-                    replies = replies_result["messages"]
-                    next_reply_cursor = replies_result.get("response_metadata", {}).get("next_cursor")
-                    has_more_replies = bool(next_reply_cursor)
-
-                    # Delete each reply
-                    for reply in replies:
-                        delete_message(channel_id, reply["ts"])
-
-    except SlackApiError as e:
-        logger.error("Error fetching conversation history: {}".format(e))
-
-
-
-# Route for install
+# Routes for other functionalities
 @app.route('/install', methods=['GET'])
 def install_route():
-    return install()
+    return install(store)
 
-# OAUTH Callback route
 @app.route('/oauth/callback', methods=['GET'])
 def oauth_callback_route():
     return oauth_callback(engine, tokens_table, app, client, store)

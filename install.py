@@ -1,11 +1,9 @@
+import os
+import time
 import uuid
 from flask import redirect
-import time
-import os
 
-store = {}
-
-def install():
+def install(store):
     state = str(uuid.uuid4())
     store[state] = time.time()  # store the state with a timestamp
     scopes = "channels:history,channels:read,chat:write,reactions:read,chat:write.public,emoji:read,users:read,chat:write.customize,im:history,mpim:history,groups:history,im:read,mpim:read,groups:read,users:read.email"
