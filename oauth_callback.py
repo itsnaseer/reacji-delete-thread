@@ -1,22 +1,19 @@
-import os
 import time
 import logging
-from flask import request
-from requests.auth import HTTPBasicAuth
 import requests
+from requests.auth import HTTPBasicAuth
+from slack_sdk.errors import SlackApiError
 
-def oauth_callback(engine, tokens_table, app, client, store):
+logger = logging.getLogger(__name__)
+
+def oauth_callback(engine, tokens_table, app, store):
     state = request.args.get('state')
     code = request.args.get('code')
-    
-    app.logger.debug(f"State received: {state}")
-    app.logger.debug(f"Store content: {store}")
 
     if not state or state not in store:
         app.logger.error("State is missing or invalid from the callback URL")
         return "State is missing or invalid from the callback URL", 400
 
-    # Basic authentication for client_id and client_secret
     auth = HTTPBasicAuth(os.getenv("SLACK_CLIENT_ID"), os.getenv("SLACK_CLIENT_SECRET"))
 
     token_url = "https://slack.com/api/oauth.v2.access"
@@ -33,8 +30,8 @@ def oauth_callback(engine, tokens_table, app, client, store):
     if response_data['ok']:
         team_id = response_data['team']['id']
         user_id = response_data['authed_user']['id']
-        access_token = response_data['authed_user'].get('access_token')  # Use user access token if available
-        bot_token = response_data.get('access_token')  # Fallback to bot access token
+        access_token = response_data['authed_user'].get('access_token')
+        bot_token = response_data.get('access_token')
 
         created_at = str(time.time())
         updated_at = created_at
@@ -49,7 +46,6 @@ def oauth_callback(engine, tokens_table, app, client, store):
             app.logger.info(f"Inserting/updating token for team {team_id}, user {user_id}, access_token: {access_token}, bot_token: {bot_token}")
             trans = conn.begin()
             try:
-                # Try to insert the new token
                 conn.execute(tokens_table.insert().values(
                     team_id=team_id,
                     user_id=user_id,
@@ -64,7 +60,6 @@ def oauth_callback(engine, tokens_table, app, client, store):
                 app.logger.info(f"Error during insert: {insert_error}")
                 if 'duplicate key value violates unique constraint' in str(insert_error):
                     trans.rollback()
-                    # If a unique constraint violation occurs, update the existing token
                     app.logger.info(f"Token for user {user_id} already exists, updating instead.")
                     trans = conn.begin()
                     try:
@@ -85,8 +80,8 @@ def oauth_callback(engine, tokens_table, app, client, store):
                     app.logger.error(f"Error inserting token: {insert_error}")
                     return "OAuth flow failed", 500
 
-        # Send a message to the user's personal DM with the user token, user's name, and user ID
         try:
+            client = WebClient(token=bot_token)
             user_info_response = client.users_info(user=user_id, token=access_token)
             if user_info_response["ok"]:
                 user_name = user_info_response["user"]["name"]
