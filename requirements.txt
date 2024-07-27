@@ -6,5 +6,3 @@ werkzeug==2.0.3
 sqlalchemy
 psycopg2
 slack-bolt
-newrelic
-gunicorn
