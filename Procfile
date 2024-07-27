@@ -1,2 +1,2 @@
 web: python slack_event_handler.py
-web: newrelic-admin run-program gunicorn slack_event_handler.py:app
+web: newrelic-admin run-program gunicorn slack_event_handler:app
