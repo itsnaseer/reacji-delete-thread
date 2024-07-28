@@ -1,10 +1,10 @@
 import logging
-from sqlalchemy import select
 from slack_bolt.authorization import AuthorizeResult
+from sqlalchemy import select
 
 def authorize(enterprise_id, team_id, user_id, engine, tokens_table):
-    logger = logging.getLogger(__name__)
     conn = engine.connect()
+    logger = logging.getLogger(__name__)
     logger.debug(f"Authorize called with enterprise_id: {enterprise_id}, team_id: {team_id}, user_id: {user_id}")
     try:
         stmt = select(tokens_table.c.access_token, tokens_table.c.bot_token).where(tokens_table.c.team_id == team_id)

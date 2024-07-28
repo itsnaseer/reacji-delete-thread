@@ -2,6 +2,7 @@ import time
 import hmac
 import hashlib
 import os
+from flask import request
 
 def verify_slack_request(request):
     timestamp = request.headers.get('X-Slack-Request-Timestamp')

@@ -1,13 +1,18 @@
 import os
+import time
 import logging
 from flask import Flask, request, jsonify
 from slack_bolt import App
 from slack_bolt.adapter.flask import SlackRequestHandler
 from slack_sdk.errors import SlackApiError
-from sqlalchemy import create_engine, Table, Column, String, MetaData
+from sqlalchemy import create_engine, Table, MetaData
+from dotenv import load_dotenv
+from authorize import authorize
+from oauth_callback import oauth_callback_function
+from install import install_function
+from verify_slack_request import verify_slack_request
 
 # Load environment variables from .env file
-from dotenv import load_dotenv
 load_dotenv()
 logging.basicConfig(level=logging.DEBUG)
 
@@ -20,35 +25,19 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 engine = create_engine(DATABASE_URL)
 metadata = MetaData()
 
-tokens_table = Table('tokens', metadata,
-    Column('team_id', String, nullable=False),
-    Column('user_id', String, primary_key=True, nullable=False),
-    Column('access_token', String, nullable=False),
-    Column('bot_token', String, nullable=True),
-    Column('created_at', String, nullable=False),
-    Column('updated_at', String, nullable=False)
-)
-
-metadata.create_all(engine)
+tokens_table = Table('tokens', metadata, autoload_with=engine)
 
 store = {}
 
-# Importing functions from other modules
-from authorize import authorize as authorize_function
-from oauth_callback import oauth_callback_route as oauth_callback_function
-from install import install_route as install_function
-from verify_slack_request import verify_slack_request
+# Slack client initialization
+client = WebClient()
 
 # Initialize Bolt app with authorize function
-def custom_authorize(enterprise_id, team_id, user_id):
-    return authorize_function(enterprise_id, team_id, user_id, engine, tokens_table)
-
 bolt_app = App(
     signing_secret=os.getenv("SLACK_SIGNING_SECRET"),
-    authorize=custom_authorize
+    authorize=lambda *args, **kwargs: authorize(*args, engine=engine, tokens_table=tokens_table, **kwargs)
 )
 handler = SlackRequestHandler(bolt_app)
-
 
 # Event handler for app_home_opened
 @bolt_app.event("app_home_opened")
