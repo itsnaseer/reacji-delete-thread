@@ -1,21 +1,13 @@
 import os
-import time
-import hmac
-import hashlib
-import requests
-import uuid
 import logging
-from flask import Flask, request, jsonify, redirect
+from flask import Flask, request, jsonify
 from slack_bolt import App
-from slack_bolt.authorization import AuthorizeResult
 from slack_bolt.adapter.flask import SlackRequestHandler
-from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
-from dotenv import load_dotenv
-from requests.auth import HTTPBasicAuth
 from sqlalchemy import create_engine, Table, Column, String, MetaData
 
 # Load environment variables from .env file
+from dotenv import load_dotenv
 load_dotenv()
 logging.basicConfig(level=logging.DEBUG)
 
@@ -43,13 +35,13 @@ store = {}
 
 # Importing functions from other modules
 from authorize import authorize as authorize_function
-from oauth_callback import oauth_callback as oauth_callback_function
-from install import install as install_function
+from oauth_callback import oauth_callback_route as oauth_callback_function
+from install import install_route as install_function
 from verify_slack_request import verify_slack_request
 
 # Initialize Bolt app with authorize function
 def custom_authorize(enterprise_id, team_id, user_id):
-    return AuthorizeResult.from_dict(authorize_function(enterprise_id, team_id, user_id, engine, tokens_table))
+    return authorize_function(enterprise_id, team_id, user_id, engine, tokens_table)
 
 bolt_app = App(
     signing_secret=os.getenv("SLACK_SIGNING_SECRET"),
@@ -274,17 +266,16 @@ def repeat_text(ack, logger, channel_id, client, context):
     except SlackApiError as e:
         logger.error("Error fetching conversation history: {}".format(e))
 
-# Install route
+# INSTALL script-- stage scopes and compile URL
 @app.route('/install', methods=['GET'])
-def install_route():
+def install():
     return install_function(store)
 
-# OAuth callback route
+# OAUTH Callback - check for and update or store tokens
 @app.route('/oauth/callback', methods=['GET'])
 def oauth_callback_route():
     return oauth_callback_function(engine, tokens_table, app, store)
 
-# Run Flask app
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 3000))
     app.run(debug=True, host='0.0.0.0', port=port)
