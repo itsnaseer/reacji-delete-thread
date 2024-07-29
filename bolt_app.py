@@ -7,6 +7,7 @@ from slack_sdk.oauth.installation_store.sqlalchemy import SQLAlchemyInstallation
 from slack_sdk.oauth.state_store.sqlalchemy import SQLAlchemyOAuthStateStore
 from sqlalchemy import create_engine, MetaData
 from flask import Flask, request
+from slack_sdk.errors import SlackApiError
 
 # Initialize Flask app
 flask_app = Flask(__name__)
