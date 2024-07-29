@@ -27,17 +27,22 @@ engine = create_engine(os.getenv('DATABASE_URL'))
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-# Database configuration
-DATABASE_URL = os.getenv("DATABASE_URL")
+# Database connection setup
+DATABASE_URL = os.getenv('AUTOMATION_TOKENS_DB_URL')
+
+# Ensure the correct dialect
+if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
 engine = create_engine(DATABASE_URL)
 metadata = MetaData()
 
 tokens_table = Table('tokens', metadata,
-    Column('enterprise_id', String, nullable=True),  # Add enterprise_id column
+    Column('enterprise_id', String, nullable=True),
     Column('team_id', String, nullable=False),
     Column('user_id', String, primary_key=True, nullable=False),
     Column('access_token', String, nullable=False),
-    Column('bot_token', String, nullable=True),
+    Column('bot_token', String, nullable=False),
     Column('created_at', String, nullable=False),
     Column('updated_at', String, nullable=False)
 )
