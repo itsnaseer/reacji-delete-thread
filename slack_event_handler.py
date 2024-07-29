@@ -53,15 +53,17 @@ from verify_slack_request import verify_slack_request
 
 def custom_authorize(enterprise_id, team_id, user_id, engine, tokens_table):
     logger.debug(f"custom_authorize called with enterprise_id: {enterprise_id}, team_id: {team_id}, user_id: {user_id}")
-    if not team_id and not enterprise_id:
-        raise ValueError("Both team_id and enterprise_id are None in custom_authorize")
-    auth_data = authorize_function(enterprise_id, team_id, user_id, engine, tokens_table)
-    return AuthorizeResult(
-        enterprise_id=auth_data["enterprise_id"],
-        team_id=auth_data["team_id"],
-        bot_token=auth_data["bot_token"],
-        user_token=auth_data["user_token"]
+    
+    stmt = select([tokens_table.c.access_token, tokens_table.c.bot_token]).where(
+        (tokens_table.c.team_id == team_id) | (tokens_table.c.enterprise_id == enterprise_id)
     )
+    
+    with engine.connect() as conn:
+        result = conn.execute(stmt).fetchone()
+        if not result:
+            raise Exception(f"No tokens found for team_id: {team_id} or enterprise_id: {enterprise_id}")
+    
+    return {"bot_token": result.bot_token, "user_token": result.access_token}
 
 # Initialize Bolt app with authorize function
 bolt_app = App(
@@ -284,7 +286,7 @@ def repeat_text(ack, logger, channel_id, client, context):
                         delete_message(channel_id, reply["ts"])
 
     except SlackApiError as e:
-        logger.error("Error fetching conversation history: {}".format(e))
+        logger.error(f"Error fetching conversation history: {e}")
 
 # Route for install
 @app.route('/install', methods=['GET'])
