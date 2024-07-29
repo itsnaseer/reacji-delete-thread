@@ -9,6 +9,9 @@ from flask import Flask, request
 # Initialize Flask app
 flask_app = Flask(__name__)
 
+# Configure logging
+logging.basicConfig(level=logging.DEBUG)
+
 # Define the scopes required for the app
 scopes = [
     "app_mentions:read",
@@ -53,12 +56,20 @@ handler = SlackRequestHandler(bolt_app)
 # Route for Slack events
 @flask_app.route("/slack/events", methods=["POST"])
 def slack_events():
-    return handler.handle(request)
+    try:
+        return handler.handle(request)
+    except Exception as e:
+        logging.error(f"Error handling Slack event: {e}")
+        return "Internal Server Error", 500
 
 # Route for clear-channel slash command
 @flask_app.route("/slack/clear-channel", methods=["POST"])
 def clear_channel_router():
-    return handler.handle(request)
+    try:
+        return handler.handle(request)
+    except Exception as e:
+        logging.error(f"Error handling clear-channel command: {e}")
+        return "Internal Server Error", 500
 
 # The clear-channel slash command handler
 @bolt_app.command("/clear-channel")
