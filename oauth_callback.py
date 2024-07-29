@@ -8,7 +8,7 @@ from flask import request
 from sqlalchemy.exc import SQLAlchemyError
 from requests.auth import HTTPBasicAuth
 
-def oauth_callback_function(engine, tokens_table, app, store):
+def oauth_callback_function(engine, tokens_table, app, store, client):
     state = request.args.get('state')
     code = request.args.get('code')
 
@@ -60,7 +60,7 @@ def oauth_callback_function(engine, tokens_table, app, store):
                 ))
                 trans.commit()
                 app.logger.info(f"Successfully inserted token for team {team_id}, user {user_id}")
-            except SQLAlchemyError as insert_error:
+            except Exception as insert_error:
                 app.logger.info(f"Error during insert: {insert_error}")
                 if 'duplicate key value violates unique constraint' in str(insert_error):
                     trans.rollback()
@@ -76,7 +76,7 @@ def oauth_callback_function(engine, tokens_table, app, store):
                         ).where(tokens_table.c.user_id == user_id))
                         trans.commit()
                         app.logger.info(f"Successfully updated token for team {team_id}, user {user_id}")
-                    except SQLAlchemyError as update_error:
+                    except Exception as update_error:
                         trans.rollback()
                         app.logger.error(f"Error updating token: {update_error}")
                         return "OAuth flow failed", 500
