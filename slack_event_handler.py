@@ -13,12 +13,6 @@ from slack_bolt.adapter.flask import SlackRequestHandler
 from sqlalchemy import create_engine, Table, Column, String, MetaData
 from dotenv import load_dotenv
 
-#importing custom functions
-from authorize import authorize_function
-from oauth_callback import oauth_callback_function
-from install import install_function
-from verify_slack_request import verify_slack_request
-
 # Load environment variables from .env file
 load_dotenv()
 
@@ -50,8 +44,16 @@ store = {}
 # Slack client initialization
 client = WebClient()  # Initialize without token
 
+# Import custom functions
+from authorize import authorize_function
+from oauth_callback import oauth_callback_function
+from install import install_function
+from verify_slack_request import verify_slack_request
+
 def custom_authorize(enterprise_id, team_id, user_id, engine, tokens_table):
     logger.debug(f"custom_authorize called with enterprise_id: {enterprise_id}, team_id: {team_id}, user_id: {user_id}")
+    if not team_id:
+        raise ValueError("team_id is None in custom_authorize")
     auth_data = authorize_function(enterprise_id, team_id, user_id, engine, tokens_table)
     return AuthorizeResult(
         enterprise_id=auth_data["enterprise_id"],
