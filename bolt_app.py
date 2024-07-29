@@ -8,7 +8,7 @@ from slack_sdk.oauth.installation_store.sqlalchemy import SQLAlchemyInstallation
 from slack_sdk.oauth.state_store.sqlalchemy import SQLAlchemyOAuthStateStore
 from sqlalchemy import create_engine, MetaData, Table, Column, String, select
 from sqlalchemy.orm import sessionmaker
-from flask import Flask, request
+from flask import Flask, request, jsonify
 
 from custom_installation_store import CustomInstallationStore
 
@@ -78,102 +78,6 @@ def slack_events():
     except Exception as e:
         logging.error(f"Error handling Slack event: {e}")
         return "Internal Server Error", 500
-
-# Event handler for app_home_opened
-@bolt_app.event("app_home_opened")
-def update_home_tab(client, event, logger):
-    user_id = event["user"]
-    try:
-        client.views_publish(
-            user_id=user_id,
-            view={
-                "type": "home",
-                "blocks": [
-                    {
-                        "type": "section",
-                        "text": {
-                            "type": "mrkdwn",
-                            "text": "*Delete Messages*: Use this app to delete messages (+ threaded replies) and generate the user token (`xoxp-1234567890`) for your current user."
-                        }
-                    },
-                    {
-                        "type": "section",
-                        "text": {
-                            "type": "mrkdwn",
-                            "text": "*Clear Channel History*: If you want to clear a channel's entire history, use the `/clear-channel` command.  "
-                        }
-                    },
-                    {
-                        "type": "section",
-                        "text": {
-                            "type": "mrkdwn",
-                            "text": ":warning: Deleting messages cannot be reversed unless you have fine-tuned your retention settings."
-                        }
-                    },
-                    {
-                        "type": "divider"
-                    },
-                    {
-                        "type": "header",
-                        "text": {
-                            "type": "plain_text",
-                            "text": "Get Started"
-                        }
-                    },
-                    {
-                        "type": "section",
-                        "text": {
-                            "type": "mrkdwn",
-                            "text": "This app uses a combination of bot and user token scopes to get permissions to manage conversations (DM, Channel, MPDM). The app uses the current user’s ID to generate the token. After generating the token it will send a message to the App’s Messages tab. "
-                        }
-                    },
-                    {
-                        "type": "section",
-                        "text": {
-                            "type": "mrkdwn",
-                            "text": "\t1.\t *Set up*. Add `delete-thread` as a reaction in your workspace. I like <https://drive.google.com/file/d/1JyOH1AAB1lAa3rHdyDXGrc_kOQuCsems/view?usp=drive_link|this version>, but you can use your own. "
-                        }
-                    },
-                    {
-                        "type": "section",
-                        "text": {
-                            "type": "mrkdwn",
-                            "text": "\t2.\t *Test*.Find a message anywhere in your workspace and apply the `:delete-thread:` reaction. If there are threaded messages, all replies will delete. "
-                        }
-                    },
-                    {
-                        "type": "section",
-                        "text": {
-                            "type": "mrkdwn",
-                            "text": "\t3.\t (optional) *Copy your token*. If you are using Smockbot Next, go to the your user’s DM with themself, copy the token, and follow the instructions for Using with SBN. "
-                        }
-                    },
-                    {
-                        "type": "section",
-                        "text": {
-                            "type": "mrkdwn",
-                            "text": "\t4.\t *Delete the token message*. Find the direct message <@{user_id}> with your user’s token in the DM with yourself and delete the message with the user token.\n_Bonus points_. Use :delete-thread: to delete the DM with the token info.  "
-                        }
-                    },
-                    {
-                        "type": "divider"
-                    },
-                    {
-                        "type": "context",
-                        "elements": [
-                            {
-                                "type": "mrkdwn",
-                                "text": "Are you looking for more comprehensive guidance? Check out the <https://salesforce.enterprise.slack.com/docs/T01G0063H29/F07BHJ16UAE|App Canvas in Giant Speck>\n\nNote: This app replaces <https://salesforce.enterprise.slack.com/docs/T01G0063H29/F0741QXLV0D|User Token Generator> (canvas will be transitioned)"
-                            }
-                        ]
-                    }
-                ]
-            }
-        )
-        logger.info(f"Home tab published")
-
-    except Exception as e:
-        logger.error(f"Error publishing home tab: {e}")
 
 # Route for clear-channel slash command
 @flask_app.route("/slack/clear-channel", methods=["POST"])
@@ -291,6 +195,102 @@ def handle_reaction_added(client, event, context, logger):
                     logger.error(f"Error deleting message: {e}")
         except SlackApiError as e:
             logger.error(f"Error fetching replies: {e}")
+
+# Event handler for app_home_opened
+@bolt_app.event("app_home_opened")
+def update_home_tab(client, event, logger):
+    user_id = event["user"]
+    try:
+        client.views_publish(
+            user_id=user_id,
+            view={
+                "type": "home",
+                "blocks": [
+                    {
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": "*Delete Messages*: Use this app to delete messages (+ threaded replies) and generate the user token (`xoxp-1234567890`) for your current user."
+                        }
+                    },
+                    {
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": "*Clear Channel History*: If you want to clear a channel's entire history, use the `/clear-channel` command.  "
+                        }
+                    },
+                    {
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": ":warning: Deleting messages cannot be reversed unless you have fine-tuned your retention settings."
+                        }
+                    },
+                    {
+                        "type": "divider"
+                    },
+                    {
+                        "type": "header",
+                        "text": {
+                            "type": "plain_text",
+                            "text": "Get Started"
+                        }
+                    },
+                    {
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": "This app uses a combination of bot and user token scopes to get permissions to manage conversations (DM, Channel, MPDM). The app uses the current user’s ID to generate the token. After generating the token it will send a message to the App’s Messages tab. "
+                        }
+                    },
+                    {
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": "\t1.\t *Set up*. Add `delete-thread` as a reaction in your workspace. I like <https://drive.google.com/file/d/1JyOH1AAB1lAa3rHdyDXGrc_kOQuCsems/view?usp=drive_link|this version>, but you can use your own. "
+                        }
+                    },
+                    {
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": "\t2.\t *Test*.Find a message anywhere in your workspace and apply the `:delete-thread:` reaction. If there are threaded messages, all replies will delete. "
+                        }
+                    },
+                    {
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": "\t3.\t (optional) *Copy your token*. If you are using Smockbot Next, go to the your user’s DM with themself, copy the token, and follow the instructions for Using with SBN. "
+                        }
+                    },
+                    {
+                        "type": "section",
+                        "text": {
+                            "type": "mrkdwn",
+                            "text": "\t4.\t *Delete the token message*. Find the direct message <@{user_id}> with your user’s token in the DM with yourself and delete the message with the user token.\n_Bonus points_. Use :delete-thread: to delete the DM with the token info.  "
+                        }
+                    },
+                    {
+                        "type": "divider"
+                    },
+                    {
+                        "type": "context",
+                        "elements": [
+                            {
+                                "type": "mrkdwn",
+                                "text": "Are you looking for more comprehensive guidance? Check out the <https://salesforce.enterprise.slack.com/docs/T01G0063H29/F07BHJ16UAE|App Canvas in Giant Speck>\n\nNote: This app replaces <https://salesforce.enterprise.slack.com/docs/T01G0063H29/F0741QXLV0D|User Token Generator> (canvas will be transitioned)"
+                            }
+                        ]
+                    }
+                ]
+            }
+        )
+        logger.info(f"Home tab published")
+
+    except Exception as e:
+        logger.error(f"Error publishing home tab: {e}")
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 3000))
