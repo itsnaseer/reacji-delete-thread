@@ -37,11 +37,13 @@ class CustomInstallationStore(InstallationStore):
     def find_installation(self, *, enterprise_id=None, team_id=None, is_enterprise_install=None):
         with self.engine.connect() as connection:
             stmt = select(
-                self.installations.c.enterprise_id,
-                self.installations.c.team_id,
-                self.installations.c.user_id,
-                self.installations.c.access_token,
-                self.installations.c.bot_token
+                [
+                    self.installations.c.enterprise_id,
+                    self.installations.c.team_id,
+                    self.installations.c.user_id,
+                    self.installations.c.access_token,
+                    self.installations.c.bot_token
+                ]
             ).where(
                 self.installations.c.enterprise_id == enterprise_id,
                 self.installations.c.team_id == team_id
@@ -60,9 +62,11 @@ class CustomInstallationStore(InstallationStore):
     def find_bot(self, *, enterprise_id=None, team_id=None, is_enterprise_install=None):
         with self.engine.connect() as connection:
             stmt = select(
-                self.installations.c.enterprise_id,
-                self.installations.c.team_id,
-                self.installations.c.bot_token
+                [
+                    self.installations.c.enterprise_id,
+                    self.installations.c.team_id,
+                    self.installations.c.bot_token
+                ]
             ).where(
                 self.installations.c.enterprise_id == enterprise_id,
                 self.installations.c.team_id == team_id
