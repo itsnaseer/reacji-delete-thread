@@ -59,19 +59,6 @@ scopes = [
     "conversations:read"
 ]
 
-# Initialize Slack Bolt app with OAuth settings
-bolt_app = App(
-    signing_secret=os.getenv("SLACK_SIGNING_SECRET"),
-    oauth_settings=OAuthSettings(
-        client_id=os.getenv("SLACK_CLIENT_ID"),
-        client_secret=os.getenv("SLACK_CLIENT_SECRET"),
-        scopes=scopes,
-    )
-)
-
-# Initialize Slack request handler for Flask
-handler = SlackRequestHandler(bolt_app)
-
 # Custom authorize function to handle token retrieval
 def custom_authorize(enterprise_id, team_id, user_id):
     with engine.connect() as conn:
@@ -86,6 +73,20 @@ def custom_authorize(enterprise_id, team_id, user_id):
             }
         else:
             raise Exception(f"No tokens found for team_id: {team_id} or enterprise_id: {enterprise_id}")
+
+# Initialize Slack Bolt app with OAuth settings
+bolt_app = App(
+    signing_secret=os.getenv("SLACK_SIGNING_SECRET"),
+    oauth_settings=OAuthSettings(
+        client_id=os.getenv("SLACK_CLIENT_ID"),
+        client_secret=os.getenv("SLACK_CLIENT_SECRET"),
+        scopes=scopes,
+        authorize=custom_authorize
+    )
+)
+
+# Initialize Slack request handler for Flask
+handler = SlackRequestHandler(bolt_app)
 
 # Route for Slack events
 @flask_app.route("/slack/events", methods=["POST"])
