@@ -1,6 +1,9 @@
 from sqlalchemy import select
 
 def authorize_function(enterprise_id, team_id, user_id, engine, tokens_table):
+    if team_id is None:
+        raise Exception("team_id is None in authorize_function")
+
     conn = engine.connect()
     try:
         stmt = select(tokens_table.c.access_token, tokens_table.c.bot_token).where(tokens_table.c.team_id == team_id)
