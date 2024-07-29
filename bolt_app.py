@@ -9,13 +9,39 @@ from flask import Flask, request
 # Initialize Flask app
 flask_app = Flask(__name__)
 
+# Define the scopes required for the app
+scopes = [
+    "app_mentions:read",
+    "channels:history",
+    "channels:read",
+    "chat:write",
+    "commands",
+    "groups:history",
+    "groups:read",
+    "im:history",
+    "im:read",
+    "mpim:history",
+    "mpim:read",
+    "reactions:read",
+    "users:read",
+    "users:read.email",
+    "chat:write.public",
+    "chat:write.customize",
+    "reactions:write",
+    "team:read",
+    "users.profile:read",
+    "conversations.history",
+    "conversations.replies",
+    "conversations:read"
+]
+
 # Initialize Slack Bolt app with OAuth settings
 bolt_app = App(
     signing_secret=os.getenv("SLACK_SIGNING_SECRET"),
     oauth_settings=OAuthSettings(
         client_id=os.getenv("SLACK_CLIENT_ID"),
         client_secret=os.getenv("SLACK_CLIENT_SECRET"),
-        scopes=["commands", "chat:write", "channels:history", "reactions:read"],
+        scopes=scopes,
         installation_store=None,  # Bolt will use its default installation store
         state_store=None  # Bolt will use its default state store
     )
