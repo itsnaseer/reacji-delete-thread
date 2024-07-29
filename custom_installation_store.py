@@ -34,7 +34,7 @@ class CustomInstallationStore(InstallationStore):
             )
             connection.execute(stmt)
 
-    def find_installation(self, *, enterprise_id, team_id, user_id, is_enterprise_install, user_token, bot_token):
+    def find_installation(self, *, enterprise_id, team_id, user_id=None, user_token=None, bot_token=None):
         with self.engine.connect() as connection:
             stmt = select([
                 self.installations.c.enterprise_id,
