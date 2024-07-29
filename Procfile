@@ -1,1 +1,1 @@
-web: python slack_event_handler.py
+web: python bolt_app.py
