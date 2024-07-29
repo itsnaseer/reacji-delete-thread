@@ -40,13 +40,13 @@ class CustomInstallationStore(SQLAlchemyInstallationStore):
 
     def find_installation(self, enterprise_id, team_id, is_enterprise_install):
         with self.engine.connect() as conn:
-            stmt = select([
+            stmt = select(
                 self.tokens_table.c.enterprise_id,
                 self.tokens_table.c.team_id,
                 self.tokens_table.c.user_id,
                 self.tokens_table.c.access_token,
                 self.tokens_table.c.bot_token
-            ]).where(
+            ).where(
                 (self.tokens_table.c.enterprise_id == enterprise_id) &
                 (self.tokens_table.c.team_id == team_id)
             )
