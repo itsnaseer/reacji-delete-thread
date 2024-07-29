@@ -29,6 +29,7 @@ engine = create_engine(DATABASE_URL)
 metadata = MetaData()
 
 tokens_table = Table('tokens', metadata,
+    Column('enterprise_id', String, nullable=True),  # Add enterprise_id column
     Column('team_id', String, nullable=False),
     Column('user_id', String, primary_key=True, nullable=False),
     Column('access_token', String, nullable=False),
@@ -52,8 +53,8 @@ from verify_slack_request import verify_slack_request
 
 def custom_authorize(enterprise_id, team_id, user_id, engine, tokens_table):
     logger.debug(f"custom_authorize called with enterprise_id: {enterprise_id}, team_id: {team_id}, user_id: {user_id}")
-    if not team_id:
-        raise ValueError("team_id is None in custom_authorize")
+    if not team_id and not enterprise_id:
+        raise ValueError("Both team_id and enterprise_id are None in custom_authorize")
     auth_data = authorize_function(enterprise_id, team_id, user_id, engine, tokens_table)
     return AuthorizeResult(
         enterprise_id=auth_data["enterprise_id"],
