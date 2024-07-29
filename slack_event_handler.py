@@ -217,12 +217,11 @@ def clear_channel_router():
 
 # The clear-channel slash command handler
 @bolt_app.command("/clear-channel")
-def clear_channel_command(ack, logger, body, client, context):
+def clear_channel(ack, logger, channel_id, client, context):
     ack()
     user_token = context['user_token']
-    channel_id = body['channel_id']
     logger.info(f"~~~~ channel: {channel_id}")
-
+    
     # Store conversation history
     conversation_history = []
     has_more = True

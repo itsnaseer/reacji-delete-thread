@@ -32,6 +32,7 @@ def oauth_callback_function(engine, tokens_table, app, store, client):
 
     if response_data['ok']:
         team_id = response_data['team']['id']
+        enterprise_id = response_data.get('enterprise', {}).get('id')
         user_id = response_data['authed_user']['id']
         access_token = response_data['authed_user'].get('access_token')  # Use user access token if available
         bot_token = response_data.get('access_token')  # Fallback to bot access token
@@ -39,19 +40,20 @@ def oauth_callback_function(engine, tokens_table, app, store, client):
         created_at = str(time.time())
         updated_at = created_at
 
-        app.logger.debug(f"Team ID: {team_id}, User ID: {user_id}, Access Token: {access_token}, Bot Token: {bot_token}")
+        app.logger.debug(f"Team ID: {team_id}, Enterprise ID: {enterprise_id}, User ID: {user_id}, Access Token: {access_token}, Bot Token: {bot_token}")
 
         if not access_token:
             app.logger.error("Access token not found in OAuth response")
             return "OAuth flow failed", 500
 
         with engine.connect() as conn:
-            app.logger.info(f"Inserting/updating token for team {team_id}, user {user_id}, access_token: {access_token}, bot_token: {bot_token}")
+            app.logger.info(f"Inserting/updating token for team {team_id}, enterprise {enterprise_id}, user {user_id}, access_token: {access_token}, bot_token: {bot_token}")
             trans = conn.begin()
             try:
                 # Try to insert the new token
                 conn.execute(tokens_table.insert().values(
                     team_id=team_id,
+                    enterprise_id=enterprise_id,
                     user_id=user_id,
                     access_token=access_token,
                     bot_token=bot_token,
@@ -59,7 +61,7 @@ def oauth_callback_function(engine, tokens_table, app, store, client):
                     updated_at=updated_at
                 ))
                 trans.commit()
-                app.logger.info(f"Successfully inserted token for team {team_id}, user {user_id}")
+                app.logger.info(f"Successfully inserted token for team {team_id}, enterprise {enterprise_id}, user {user_id}")
             except Exception as insert_error:
                 app.logger.info(f"Error during insert: {insert_error}")
                 if 'duplicate key value violates unique constraint' in str(insert_error):
@@ -70,12 +72,13 @@ def oauth_callback_function(engine, tokens_table, app, store, client):
                     try:
                         conn.execute(tokens_table.update().values(
                             team_id=team_id,
+                            enterprise_id=enterprise_id,
                             access_token=access_token,
                             bot_token=bot_token,
                             updated_at=updated_at
                         ).where(tokens_table.c.user_id == user_id))
                         trans.commit()
-                        app.logger.info(f"Successfully updated token for team {team_id}, user {user_id}")
+                        app.logger.info(f"Successfully updated token for team {team_id}, enterprise {enterprise_id}, user {user_id}")
                     except Exception as update_error:
                         trans.rollback()
                         app.logger.error(f"Error updating token: {update_error}")
