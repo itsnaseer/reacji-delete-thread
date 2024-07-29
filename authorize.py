@@ -38,16 +38,19 @@ def authorize_function(enterprise_id, team_id, user_id, engine, tokens_table):
 
 def custom_authorize(enterprise_id, team_id, user_id, engine, tokens_table):
     logger.debug(f"custom_authorize called with enterprise_id: {enterprise_id}, team_id: {team_id}, user_id: {user_id}")
-    
-    stmt = select(tokens_table.c.access_token, tokens_table.c.bot_token).where(
+
+    if not team_id and not enterprise_id:
+        raise ValueError("Both team_id and enterprise_id are None in custom_authorize")
+
+    query = select(tokens_table.c.access_token, tokens_table.c.bot_token).where(
         (tokens_table.c.team_id == team_id) | (tokens_table.c.enterprise_id == enterprise_id)
     )
-    
+
     with engine.connect() as conn:
-        result = conn.execute(stmt).fetchone()
+        result = conn.execute(query).fetchone()
         if not result:
             raise Exception(f"No tokens found for team_id: {team_id} or enterprise_id: {enterprise_id}")
-    
+
     return AuthorizeResult(
         bot_token=result.bot_token,
         user_token=result.access_token

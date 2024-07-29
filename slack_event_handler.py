@@ -5,6 +5,7 @@ import hashlib
 import uuid
 import logging
 from flask import Flask, request, jsonify
+from init_db import tokens_table
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 from slack_bolt import App
@@ -20,8 +21,11 @@ load_dotenv()
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-# Initialize Flask app
+# Set up Flask app and Slack Bolt app
 app = Flask(__name__)
+engine = create_engine(os.getenv('DATABASE_URL'))
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 # Database configuration
 DATABASE_URL = os.getenv("DATABASE_URL")
@@ -51,7 +55,7 @@ from oauth_callback import oauth_callback_function
 from install import install_function
 from verify_slack_request import verify_slack_request
 
-# Initialize Bolt app with authorize function
+# Bolt app initialization
 bolt_app = App(
     signing_secret=os.getenv("SLACK_SIGNING_SECRET"),
     authorize=lambda enterprise_id, team_id, user_id: custom_authorize(enterprise_id, team_id, user_id, engine, tokens_table)
@@ -209,11 +213,12 @@ def clear_channel_router():
 
 # The clear-channel slash command handler
 @bolt_app.command("/clear-channel")
-def repeat_text(ack, logger, channel_id, client, context):
+def clear_channel_command(ack, logger, body, client, context):
     ack()
     user_token = context['user_token']
+    channel_id = body['channel_id']
     logger.info(f"~~~~ channel: {channel_id}")
-    
+
     # Store conversation history
     conversation_history = []
     has_more = True
