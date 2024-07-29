@@ -5,7 +5,6 @@ import hashlib
 import uuid
 import logging
 from flask import Flask, request, jsonify
-from init_db import tokens_table
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 from slack_bolt import App
