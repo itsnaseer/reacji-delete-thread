@@ -1,12 +1,10 @@
 import os
 import logging
 from slack_bolt import App
-from slack_bolt.oauth.oauth_settings import OAuthSettings
 from slack_bolt.adapter.flask import SlackRequestHandler
-from slack_sdk.errors import SlackApiError
 from slack_sdk.oauth.installation_store.sqlalchemy import SQLAlchemyInstallationStore
 from slack_sdk.oauth.state_store.sqlalchemy import SQLAlchemyOAuthStateStore
-from sqlalchemy import create_engine, MetaData, Table, Column, String, select
+from sqlalchemy import create_engine, MetaData
 from sqlalchemy.orm import sessionmaker
 from flask import Flask, request
 
@@ -21,19 +19,18 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 engine = create_engine(DATABASE_URL)
 metadata = MetaData()
 
-# Define the tokens table
-tokens_table = Table('tokens', metadata,
-    Column('enterprise_id', String, nullable=True),
-    Column('team_id', String, nullable=False),
-    Column('user_id', String, primary_key=True, nullable=False),
-    Column('access_token', String, nullable=False),
-    Column('bot_token', String, nullable=False),
-    Column('created_at', String, nullable=False),
-    Column('updated_at', String, nullable=False)
+# Installation store and OAuth state store
+installation_store = SQLAlchemyInstallationStore(
+    client_id=os.getenv("SLACK_CLIENT_ID"),
+    engine=engine,
+    logger=logging.getLogger(__name__)
 )
 
-Session = sessionmaker(bind=engine)
-session = Session()
+oauth_state_store = SQLAlchemyOAuthStateStore(
+    expiration_seconds=600,
+    engine=engine,
+    logger=logging.getLogger(__name__)
+)
 
 # Define the scopes required for the app
 scopes = [
@@ -61,38 +58,16 @@ scopes = [
     "conversations:read"
 ]
 
-# Custom authorize function to handle token retrieval
-def custom_authorize(enterprise_id, team_id, user_id):
-    with engine.connect() as conn:
-        stmt = select([tokens_table.c.access_token, tokens_table.c.bot_token]).where(
-            (tokens_table.c.team_id == team_id) | (tokens_table.c.enterprise_id == enterprise_id)
-        )
-        result = conn.execute(stmt).fetchone()
-        if result:
-            return {
-                "bot_token": result["bot_token"],
-                "user_token": result["access_token"]
-            }
-        else:
-            raise Exception(f"No tokens found for team_id: {team_id} or enterprise_id: {enterprise_id}")
-
 # Initialize Slack Bolt app with OAuth settings
 bolt_app = App(
     signing_secret=os.getenv("SLACK_SIGNING_SECRET"),
     client_id=os.getenv("SLACK_CLIENT_ID"),
     client_secret=os.getenv("SLACK_CLIENT_SECRET"),
     scopes=scopes,
-    installation_store=SQLAlchemyInstallationStore(
-        client_id=os.getenv("SLACK_CLIENT_ID"),
-        engine=engine,
-        logger=logging.getLogger(__name__)
-    ),
-    state_store=SQLAlchemyOAuthStateStore(
-        expiration_seconds=600,
-        engine=engine,
-        logger=logging.getLogger(__name__)
-    ),
-    authorize=custom_authorize
+    installation_store=installation_store,
+    state_store=oauth_state_store,
+    oauth_install_path="/slack/install",
+    oauth_redirect_uri_path="/slack/oauth_redirect"
 )
 
 # Initialize Slack request handler for Flask
