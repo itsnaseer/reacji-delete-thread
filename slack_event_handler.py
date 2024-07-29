@@ -267,7 +267,7 @@ def install():
 # OAUTH Callback - check for and update or store tokens
 @app.route('/oauth/callback', methods=['GET'])
 def oauth_callback_route():
-    return oauth_callback_function(engine, tokens_table, app, store)
+    return oauth_callback_function(engine, tokens_table, app, store, client)
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 3000))
