@@ -10,7 +10,7 @@ from slack_sdk.errors import SlackApiError
 from slack_bolt import App
 from slack_bolt.authorization import AuthorizeResult
 from slack_bolt.adapter.flask import SlackRequestHandler
-from sqlalchemy import create_engine, Table, MetaData
+from sqlalchemy import create_engine, Table, Column, String, MetaData
 from dotenv import load_dotenv
 
 #importing custom functions
