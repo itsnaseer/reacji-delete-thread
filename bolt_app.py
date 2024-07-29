@@ -3,11 +3,10 @@ import logging
 from slack_bolt import App
 from slack_bolt.oauth.oauth_settings import OAuthSettings
 from slack_bolt.adapter.flask import SlackRequestHandler
-from slack_sdk.oauth.installation_store.sqlalchemy import SQLAlchemyInstallationStore
-from slack_sdk.oauth.state_store.sqlalchemy import SQLAlchemyOAuthStateStore
-from sqlalchemy import create_engine, MetaData
-from flask import Flask, request
 from slack_sdk.errors import SlackApiError
+from sqlalchemy import create_engine, MetaData, Table, Column, String, select
+from sqlalchemy.orm import sessionmaker
+from flask import Flask, request
 
 # Initialize Flask app
 flask_app = Flask(__name__)
@@ -20,18 +19,19 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 engine = create_engine(DATABASE_URL)
 metadata = MetaData()
 
-# Installation store and OAuth state store
-installation_store = SQLAlchemyInstallationStore(
-    client_id=os.getenv("SLACK_CLIENT_ID"),
-    engine=engine,
-    logger=logging.getLogger(__name__)
+# Define the tokens table
+tokens_table = Table('tokens', metadata,
+    Column('enterprise_id', String, nullable=True),
+    Column('team_id', String, nullable=False),
+    Column('user_id', String, primary_key=True, nullable=False),
+    Column('access_token', String, nullable=False),
+    Column('bot_token', String, nullable=False),
+    Column('created_at', String, nullable=False),
+    Column('updated_at', String, nullable=False)
 )
 
-oauth_state_store = SQLAlchemyOAuthStateStore(
-    expiration_seconds=600,
-    engine=engine,
-    logger=logging.getLogger(__name__)
-)
+Session = sessionmaker(bind=engine)
+session = Session()
 
 # Define the scopes required for the app
 scopes = [
@@ -73,6 +73,21 @@ bolt_app = App(
 
 # Initialize Slack request handler for Flask
 handler = SlackRequestHandler(bolt_app)
+
+# Custom authorize function to handle token retrieval
+def custom_authorize(enterprise_id, team_id, user_id):
+    with engine.connect() as conn:
+        stmt = select([tokens_table.c.access_token, tokens_table.c.bot_token]).where(
+            (tokens_table.c.team_id == team_id) | (tokens_table.c.enterprise_id == enterprise_id)
+        )
+        result = conn.execute(stmt).fetchone()
+        if result:
+            return {
+                "bot_token": result["bot_token"],
+                "user_token": result["access_token"]
+            }
+        else:
+            raise Exception(f"No tokens found for team_id: {team_id} or enterprise_id: {enterprise_id}")
 
 # Route for Slack events
 @flask_app.route("/slack/events", methods=["POST"])
