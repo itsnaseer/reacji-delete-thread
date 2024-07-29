@@ -14,7 +14,9 @@ class CustomInstallationStore(InstallationStore):
             Column('team_id', String, nullable=False),
             Column('user_id', String, primary_key=True, nullable=False),
             Column('access_token', String, nullable=False),
-            Column('bot_token', String, nullable=False),
+            Column('bot_token', String),
+            Column('created_at', String),
+            Column('updated_at', String),
         )
         self.sessionmaker = sessionmaker(bind=engine)
         self._logger = logger or logging.getLogger(__name__)
@@ -31,12 +33,14 @@ class CustomInstallationStore(InstallationStore):
                 user_id=installation.user_id,
                 access_token=installation.user_token,
                 bot_token=installation.bot_token,
+                created_at=installation.created_at,
+                updated_at=installation.updated_at,
             )
             connection.execute(stmt)
 
     def find_installation(self, *, enterprise_id=None, team_id=None, user_id=None, is_enterprise_install=None):
         with self.engine.connect() as connection:
-            stmt = select(
+            query = select(
                 self.installations.c.enterprise_id,
                 self.installations.c.team_id,
                 self.installations.c.user_id,
@@ -46,7 +50,10 @@ class CustomInstallationStore(InstallationStore):
                 self.installations.c.enterprise_id == enterprise_id,
                 self.installations.c.team_id == team_id
             )
-            result = connection.execute(stmt).fetchone()
+            if user_id:
+                query = query.where(self.installations.c.user_id == user_id)
+
+            result = connection.execute(query).fetchone()
             if result:
                 return Installation(
                     enterprise_id=result.enterprise_id,
@@ -59,7 +66,7 @@ class CustomInstallationStore(InstallationStore):
 
     def find_bot(self, *, enterprise_id=None, team_id=None, is_enterprise_install=None):
         with self.engine.connect() as connection:
-            stmt = select(
+            query = select(
                 self.installations.c.enterprise_id,
                 self.installations.c.team_id,
                 self.installations.c.bot_token
@@ -67,7 +74,7 @@ class CustomInstallationStore(InstallationStore):
                 self.installations.c.enterprise_id == enterprise_id,
                 self.installations.c.team_id == team_id
             )
-            result = connection.execute(stmt).fetchone()
+            result = connection.execute(query).fetchone()
             if result:
                 return Bot(
                     enterprise_id=result.enterprise_id,
