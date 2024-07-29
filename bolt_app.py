@@ -24,7 +24,6 @@ metadata = MetaData()
 installation_store = SQLAlchemyInstallationStore(
     client_id=os.getenv("SLACK_CLIENT_ID"),
     engine=engine,
-    metadata=metadata,
     logger=logging.getLogger(__name__)
 )
 
