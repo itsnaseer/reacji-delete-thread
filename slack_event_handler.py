@@ -3,6 +3,7 @@ import time
 import logging
 from flask import Flask, request, jsonify
 from slack_bolt import App
+from slack_sdk import WebClient
 from slack_bolt.adapter.flask import SlackRequestHandler
 from slack_sdk.errors import SlackApiError
 from sqlalchemy import create_engine, Table, MetaData
