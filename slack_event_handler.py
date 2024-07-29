@@ -5,12 +5,15 @@ import hashlib
 import uuid
 import logging
 from flask import Flask, request, jsonify
-from slack_bolt import App
 from slack_sdk import WebClient
-from slack_bolt.adapter.flask import SlackRequestHandler
 from slack_sdk.errors import SlackApiError
+from slack_bolt import App
+from slack_bolt.authorization import AuthorizeResult
+from slack_bolt.adapter.flask import SlackRequestHandler
 from sqlalchemy import create_engine, Table, MetaData
 from dotenv import load_dotenv
+
+#importing custom functions
 from authorize import authorize_function
 from oauth_callback import oauth_callback_function
 from install import install_function
