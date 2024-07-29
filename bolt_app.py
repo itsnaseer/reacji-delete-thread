@@ -77,12 +77,20 @@ def custom_authorize(enterprise_id, team_id, user_id):
 # Initialize Slack Bolt app with OAuth settings
 bolt_app = App(
     signing_secret=os.getenv("SLACK_SIGNING_SECRET"),
-    oauth_settings=OAuthSettings(
+    client_id=os.getenv("SLACK_CLIENT_ID"),
+    client_secret=os.getenv("SLACK_CLIENT_SECRET"),
+    scopes=scopes,
+    installation_store=SQLAlchemyInstallationStore(
         client_id=os.getenv("SLACK_CLIENT_ID"),
-        client_secret=os.getenv("SLACK_CLIENT_SECRET"),
-        scopes=scopes,
-        authorize=custom_authorize
-    )
+        engine=engine,
+        logger=logging.getLogger(__name__)
+    ),
+    state_store=SQLAlchemyOAuthStateStore(
+        expiration_seconds=600,
+        engine=engine,
+        logger=logging.getLogger(__name__)
+    ),
+    authorize=custom_authorize
 )
 
 # Initialize Slack request handler for Flask
