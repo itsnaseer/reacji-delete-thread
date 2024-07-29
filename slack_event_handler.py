@@ -39,6 +39,15 @@ store = {}
 # Slack client initialization
 client = WebClient()
 
+def custom_authorize(enterprise_id, team_id, user_id, engine, tokens_table):
+    auth_data = authorize_function(enterprise_id, team_id, user_id, engine, tokens_table)
+    return AuthorizeResult(
+        enterprise_id=auth_data["enterprise_id"],
+        team_id=auth_data["team_id"],
+        bot_token=auth_data["bot_token"],
+        user_token=auth_data["user_token"]
+    )
+
 # Initialize Bolt app with authorize function
 bolt_app = App(
     signing_secret=os.getenv("SLACK_SIGNING_SECRET"),
