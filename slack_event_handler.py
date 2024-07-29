@@ -51,6 +51,7 @@ store = {}
 client = WebClient()  # Initialize without token
 
 def custom_authorize(enterprise_id, team_id, user_id, engine, tokens_table):
+    logger.debug(f"custom_authorize called with enterprise_id: {enterprise_id}, team_id: {team_id}, user_id: {user_id}")
     auth_data = authorize_function(enterprise_id, team_id, user_id, engine, tokens_table)
     return AuthorizeResult(
         enterprise_id=auth_data["enterprise_id"],

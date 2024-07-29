@@ -1,8 +1,12 @@
 from sqlalchemy import select
+import logging
+
+logger = logging.getLogger(__name__)
 
 def authorize_function(enterprise_id, team_id, user_id, engine, tokens_table):
     if team_id is None:
         raise Exception("team_id is None in authorize_function")
+    logger.debug(f"authorize_function called with enterprise_id: {enterprise_id}, team_id: {team_id}, user_id: {user_id}")
 
     conn = engine.connect()
     try:
