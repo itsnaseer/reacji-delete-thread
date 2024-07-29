@@ -11,7 +11,7 @@ from slack_bolt.adapter.flask import SlackRequestHandler
 from slack_sdk.errors import SlackApiError
 from sqlalchemy import create_engine, Table, MetaData
 from dotenv import load_dotenv
-from authorize import authorize
+from authorize import authorize_function
 from oauth_callback import oauth_callback_function
 from install import install_function
 from verify_slack_request import verify_slack_request
