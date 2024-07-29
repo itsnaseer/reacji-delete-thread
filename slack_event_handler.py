@@ -10,7 +10,7 @@ from slack_sdk.errors import SlackApiError
 from slack_bolt import App
 from slack_bolt.authorization import AuthorizeResult
 from slack_bolt.adapter.flask import SlackRequestHandler
-from sqlalchemy import create_engine, Table, Column, String, MetaData
+from sqlalchemy import create_engine, Table, Column, String, MetaData, select
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -46,24 +46,10 @@ store = {}
 client = WebClient()  # Initialize without token
 
 # Import custom functions
-from authorize import authorize_function
+from authorize import authorize_function, custom_authorize
 from oauth_callback import oauth_callback_function
 from install import install_function
 from verify_slack_request import verify_slack_request
-
-def custom_authorize(enterprise_id, team_id, user_id, engine, tokens_table):
-    logger.debug(f"custom_authorize called with enterprise_id: {enterprise_id}, team_id: {team_id}, user_id: {user_id}")
-    
-    stmt = select([tokens_table.c.access_token, tokens_table.c.bot_token]).where(
-        (tokens_table.c.team_id == team_id) | (tokens_table.c.enterprise_id == enterprise_id)
-    )
-    
-    with engine.connect() as conn:
-        result = conn.execute(stmt).fetchone()
-        if not result:
-            raise Exception(f"No tokens found for team_id: {team_id} or enterprise_id: {enterprise_id}")
-    
-    return {"bot_token": result.bot_token, "user_token": result.access_token}
 
 # Initialize Bolt app with authorize function
 bolt_app = App(
