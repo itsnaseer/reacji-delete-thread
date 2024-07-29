@@ -60,3 +60,11 @@ class CustomInstallationStore(SQLAlchemyInstallationStore):
                 "bot_token": result.bot_token
             }
         return None
+
+class Installation:
+    def __init__(self, enterprise_id, team_id, user_id, access_token, bot_token):
+        self.enterprise_id = enterprise_id
+        self.team_id = team_id
+        self.user_id = user_id
+        self.access_token = access_token
+        self.bot_token = bot_token

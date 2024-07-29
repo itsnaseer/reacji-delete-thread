@@ -84,7 +84,6 @@ def slack_events():
 def update_home_tab(client, event, logger):
     user_id = event["user"]
     try:
-        # Use the bot token for publishing the home tab
         client.views_publish(
             user_id=user_id,
             view={
@@ -187,8 +186,9 @@ def clear_channel_router():
 
 # The clear-channel slash command handler
 @bolt_app.command("/clear-channel")
-def repeat_text(ack, logger, channel_id, client, context):
+def repeat_text(ack, logger, body, client, context):
     ack()
+    channel_id = body['channel_id']
     user_token = context['user_token']
     logger.info(f"~~~~ channel: {channel_id}")
     
