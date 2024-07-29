@@ -44,9 +44,7 @@ bolt_app = App(
     oauth_settings=OAuthSettings(
         client_id=os.getenv("SLACK_CLIENT_ID"),
         client_secret=os.getenv("SLACK_CLIENT_SECRET"),
-        scopes=scopes,
-        installation_store=None,  # Bolt will use its default installation store
-        state_store=None  # Bolt will use its default state store
+        scopes=scopes
     )
 )
 
