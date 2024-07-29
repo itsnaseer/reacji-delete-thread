@@ -66,8 +66,6 @@ bolt_app = App(
         client_id=os.getenv("SLACK_CLIENT_ID"),
         client_secret=os.getenv("SLACK_CLIENT_SECRET"),
         scopes=scopes,
-        installation_store=installation_store,
-        state_store=oauth_state_store,
     )
 )
 
