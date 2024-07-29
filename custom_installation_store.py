@@ -17,7 +17,11 @@ class CustomInstallationStore(InstallationStore):
             Column('bot_token', String, nullable=False),
         )
         self.sessionmaker = sessionmaker(bind=engine)
-        self.logger = logger or logging.getLogger(__name__)
+        self._logger = logger or logging.getLogger(__name__)
+
+    @property
+    def logger(self):
+        return self._logger
 
     def save(self, installation: Installation):
         with self.engine.connect() as connection:

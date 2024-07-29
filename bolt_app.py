@@ -4,11 +4,8 @@ from slack_bolt import App
 from slack_bolt.oauth.oauth_settings import OAuthSettings
 from slack_bolt.adapter.flask import SlackRequestHandler
 from slack_sdk.errors import SlackApiError
-from slack_sdk.oauth.installation_store.sqlalchemy import SQLAlchemyInstallationStore
-from slack_sdk.oauth.state_store.sqlalchemy import SQLAlchemyOAuthStateStore
-from sqlalchemy import create_engine, MetaData, Table, Column, String, select
-from sqlalchemy.orm import sessionmaker
-from flask import Flask, request, jsonify
+from sqlalchemy import create_engine, MetaData
+from flask import Flask, request
 
 from custom_installation_store import CustomInstallationStore
 
@@ -23,7 +20,7 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 engine = create_engine(DATABASE_URL)
 metadata = MetaData()
 
-# Installation store and OAuth state store
+# Installation store
 installation_store = CustomInstallationStore(
     client_id=os.getenv("SLACK_CLIENT_ID"),
     engine=engine,
