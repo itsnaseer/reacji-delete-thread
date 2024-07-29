@@ -21,7 +21,6 @@ metadata = MetaData()
 
 # Installation store and OAuth state store
 installation_store = SQLAlchemyInstallationStore(
-    client_id=os.getenv("SLACK_CLIENT_ID"),
     engine=engine,
     logger=logging.getLogger(__name__)
 )
@@ -61,13 +60,13 @@ scopes = [
 # Initialize Slack Bolt app with OAuth settings
 bolt_app = App(
     signing_secret=os.getenv("SLACK_SIGNING_SECRET"),
-    client_id=os.getenv("SLACK_CLIENT_ID"),
-    client_secret=os.getenv("SLACK_CLIENT_SECRET"),
-    scopes=scopes,
-    installation_store=installation_store,
-    state_store=oauth_state_store,
-    oauth_install_path="/slack/install",
-    oauth_redirect_uri_path="/slack/oauth_redirect"
+    oauth_settings=OAuthSettings(
+        client_id=os.getenv("SLACK_CLIENT_ID"),
+        client_secret=os.getenv("SLACK_CLIENT_SECRET"),
+        scopes=scopes,
+        installation_store=installation_store,
+        state_store=oauth_state_store,
+    )
 )
 
 # Initialize Slack request handler for Flask
