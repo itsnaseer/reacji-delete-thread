@@ -10,6 +10,8 @@ from sqlalchemy import create_engine, MetaData, Table, Column, String, select
 from sqlalchemy.orm import sessionmaker
 from flask import Flask, request
 
+from custom_installation_store import CustomInstallationStore
+
 # Initialize Flask app
 flask_app = Flask(__name__)
 
@@ -22,14 +24,8 @@ engine = create_engine(DATABASE_URL)
 metadata = MetaData()
 
 # Installation store and OAuth state store
-installation_store = SQLAlchemyInstallationStore(
+installation_store = CustomInstallationStore(
     client_id=os.getenv("SLACK_CLIENT_ID"),
-    engine=engine,
-    logger=logging.getLogger(__name__)
-)
-
-oauth_state_store = SQLAlchemyOAuthStateStore(
-    expiration_seconds=600,
     engine=engine,
     logger=logging.getLogger(__name__)
 )
@@ -67,8 +63,7 @@ bolt_app = App(
         client_id=os.getenv("SLACK_CLIENT_ID"),
         client_secret=os.getenv("SLACK_CLIENT_SECRET"),
         scopes=scopes,
-        installation_store=installation_store,
-        state_store=oauth_state_store,
+        installation_store=installation_store
     )
 )
 
