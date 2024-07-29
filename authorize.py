@@ -1,5 +1,6 @@
 from sqlalchemy import select
 import logging
+from slack_bolt.authorization import AuthorizeResult
 
 logger = logging.getLogger(__name__)
 
@@ -47,4 +48,7 @@ def custom_authorize(enterprise_id, team_id, user_id, engine, tokens_table):
         if not result:
             raise Exception(f"No tokens found for team_id: {team_id} or enterprise_id: {enterprise_id}")
     
-    return {"bot_token": result.bot_token, "user_token": result.access_token}
+    return AuthorizeResult(
+        bot_token=result.bot_token,
+        user_token=result.access_token
+    )
