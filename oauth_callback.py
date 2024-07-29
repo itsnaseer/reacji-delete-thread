@@ -1,5 +1,6 @@
 import time
 import logging
+import os
 import requests
 from flask import request
 from sqlalchemy.exc import SQLAlchemyError
