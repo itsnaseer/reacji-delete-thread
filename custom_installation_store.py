@@ -6,7 +6,7 @@ class CustomInstallationStore(SQLAlchemyInstallationStore):
     def __init__(self, client_id, engine, logger):
         self.client_id = client_id
         self.engine = engine
-        self.logger = logger
+        self._logger = logger
         self.metadata = MetaData()
         self.tokens_table = Table(
             'tokens',
@@ -19,6 +19,10 @@ class CustomInstallationStore(SQLAlchemyInstallationStore):
             Column('created_at', String, nullable=False),
             Column('updated_at', String, nullable=False)
         )
+
+    @property
+    def logger(self):
+        return self._logger
 
     def save(self, installation):
         with self.engine.connect() as conn:
