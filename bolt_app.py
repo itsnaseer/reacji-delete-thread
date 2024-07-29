@@ -171,4 +171,6 @@ def handle_reaction_added(event, client, logger, context):
         logger.error(f"Error handling reaction: {e}")
 
 if __name__ == "__main__":
-    flask_app.run(port=int(os.getenv("PORT", 3000)))
+    port = int(os.getenv("PORT", 3000))
+    logging.info(f"Starting app on port {port}")
+    flask_app.run(host="0.0.0.0", port=port)
