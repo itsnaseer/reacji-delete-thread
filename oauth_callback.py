@@ -1,6 +1,7 @@
 import time
 import logging
 import requests
+from flask import request
 from sqlalchemy.exc import SQLAlchemyError
 from requests.auth import HTTPBasicAuth
 
