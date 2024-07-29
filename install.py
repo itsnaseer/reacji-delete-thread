@@ -1,7 +1,7 @@
 import os
 import uuid
 import time 
-from flask import redirect
+from flask import redirect, request
 
 def install_function(store):
     state = str(uuid.uuid4())
