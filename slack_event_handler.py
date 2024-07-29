@@ -27,7 +27,7 @@ logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 # Database connection setup
-DATABASE_URL = os.getenv('AUTOMATION_TOKENS_DB_URL')
+DATABASE_URL = os.getenv('DATABASE_URL')
 
 # Ensure the correct dialect
 if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
