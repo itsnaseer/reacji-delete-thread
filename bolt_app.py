@@ -2,8 +2,10 @@ import os
 import logging
 from slack_bolt import App
 from slack_bolt.oauth.oauth_settings import OAuthSettings
-from slack_sdk.errors import SlackApiError
 from slack_bolt.adapter.flask import SlackRequestHandler
+from slack_sdk.oauth.installation_store.sqlalchemy import SQLAlchemyInstallationStore
+from slack_sdk.oauth.state_store.sqlalchemy import SQLAlchemyOAuthStateStore
+from sqlalchemy import create_engine, MetaData
 from flask import Flask, request
 
 # Initialize Flask app
@@ -11,6 +13,25 @@ flask_app = Flask(__name__)
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
+
+# Database setup
+DATABASE_URL = os.getenv("DATABASE_URL")
+engine = create_engine(DATABASE_URL)
+metadata = MetaData()
+
+# Installation store and OAuth state store
+installation_store = SQLAlchemyInstallationStore(
+    client_id=os.getenv("SLACK_CLIENT_ID"),
+    engine=engine,
+    metadata=metadata,
+    logger=logging.getLogger(__name__)
+)
+
+oauth_state_store = SQLAlchemyOAuthStateStore(
+    expiration_seconds=600,
+    engine=engine,
+    logger=logging.getLogger(__name__)
+)
 
 # Define the scopes required for the app
 scopes = [
@@ -44,7 +65,9 @@ bolt_app = App(
     oauth_settings=OAuthSettings(
         client_id=os.getenv("SLACK_CLIENT_ID"),
         client_secret=os.getenv("SLACK_CLIENT_SECRET"),
-        scopes=scopes
+        scopes=scopes,
+        installation_store=installation_store,
+        state_store=oauth_state_store,
     )
 )
 
