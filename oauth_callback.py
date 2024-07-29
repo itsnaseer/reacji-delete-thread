@@ -2,6 +2,7 @@ import time
 import logging
 import os
 import requests
+from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
 from flask import request
 from sqlalchemy.exc import SQLAlchemyError
