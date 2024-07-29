@@ -7,6 +7,7 @@ from slack_sdk.errors import SlackApiError
 from slack_sdk.oauth.installation_store.sqlalchemy import SQLAlchemyInstallationStore
 from slack_sdk.oauth.state_store.sqlalchemy import SQLAlchemyOAuthStateStore
 from sqlalchemy import create_engine, MetaData, Table, Column, String, select
+from sqlalchemy.orm import sessionmaker
 from flask import Flask, request
 
 # Initialize Flask app
