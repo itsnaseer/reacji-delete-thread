@@ -39,7 +39,7 @@ client = WebClient()
 # Initialize Bolt app with authorize function
 bolt_app = App(
     signing_secret=os.getenv("SLACK_SIGNING_SECRET"),
-    authorize=lambda *args, **kwargs: authorize(*args, engine=engine, tokens_table=tokens_table, **kwargs)
+    authorize=lambda enterprise_id, team_id, user_id: custom_authorize(enterprise_id, team_id, user_id, engine, tokens_table)
 )
 handler = SlackRequestHandler(bolt_app)
 
