@@ -1,7 +1,7 @@
 import logging
 from sqlalchemy import Table, Column, String, MetaData, select
 from sqlalchemy.orm import sessionmaker
-from slack_sdk.oauth.installation_store import InstallationStore, Bot, Installation
+from slack_sdk.oauth.installation_store import InstallationStore, Installation, Bot
 
 class CustomInstallationStore(InstallationStore):
     def __init__(self, client_id, engine, logger=None):
@@ -38,7 +38,7 @@ class CustomInstallationStore(InstallationStore):
                 updated_at=installation.updated_at,
                 bot_token=installation.bot_token,
                 enterprise_id=installation.enterprise_id,
-                id_type=id_type
+                id_type=id_type  # Ensure id_type is saved
             )
             connection.execute(stmt)
 
@@ -50,7 +50,9 @@ class CustomInstallationStore(InstallationStore):
                 self.installations.c.team_id,
                 self.installations.c.user_id,
                 self.installations.c.access_token,
-                self.installations.c.bot_token
+                self.installations.c.bot_token,
+                self.installations.c.enterprise_id,
+                self.installations.c.id_type
             ).where(
                 (self.installations.c.enterprise_id == id_value if id_type == 'enterprise_id' else self.installations.c.team_id == id_value)
             )
@@ -60,8 +62,8 @@ class CustomInstallationStore(InstallationStore):
             result = connection.execute(query).fetchone()
             if result:
                 return Installation(
-                    enterprise_id=result.enterprise_id if id_type == 'enterprise_id' else None,
-                    team_id=result.team_id,
+                    enterprise_id=result.enterprise_id if result.id_type == 'enterprise_id' else None,
+                    team_id=result.team_id if result.id_type == 'team_id' else None,
                     user_id=result.user_id,
                     user_token=result.access_token,
                     bot_token=result.bot_token
@@ -74,15 +76,17 @@ class CustomInstallationStore(InstallationStore):
         with self.engine.connect() as connection:
             query = select(
                 self.installations.c.team_id,
-                self.installations.c.bot_token
+                self.installations.c.bot_token,
+                self.installations.c.enterprise_id,
+                self.installations.c.id_type
             ).where(
                 (self.installations.c.enterprise_id == id_value if id_type == 'enterprise_id' else self.installations.c.team_id == id_value)
             )
             result = connection.execute(query).fetchone()
             if result:
                 return Bot(
-                    enterprise_id=result.enterprise_id if id_type == 'enterprise_id' else None,
-                    team_id=result.team_id,
+                    enterprise_id=result.enterprise_id if result.id_type == 'enterprise_id' else None,
+                    team_id=result.team_id if result.id_type == 'team_id' else None,
                     bot_token=result.bot_token
                 )
             return None
