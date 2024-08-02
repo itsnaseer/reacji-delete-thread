@@ -4,3 +4,4 @@ slack-sdk
 requests
 SQLAlchemy
 psycopg2-binary
+newrelic
