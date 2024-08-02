@@ -15,6 +15,6 @@ This app uses a combination of bot and user token scopes to get permissions to m
 4. Delete the token message. Find the direct message  with your user’s token in the DM with yourself and delete the message with the user token.
 *Bonus points*. Use :delete-thread: to delete the DM with the token info.
 
-<Install URL|https://slack.com/oauth/v2/authorize?client_id=1136833012721.7175339828356&scope=channels:history,channels:read,chat:write,groups:history,groups:read,im:history,im:read,mpim:history,mpim:read,reactions:read,commands&user_scope=admin,channels:history,channels:read,chat:write,reactions:read,admin.conversations:write,mpim:history,groups:history,im:history>
+[Install](https://slack.com/oauth/v2/authorize?client_id=1136833012721.7175339828356&scope=channels:history,channels:read,chat:write,groups:history,groups:read,im:history,im:read,mpim:history,mpim:read,reactions:read,commands&user_scope=admin,channels:history,channels:read,chat:write,reactions:read,admin.conversations:write,mpim:history,groups:history,im:history)
 
 Are you looking for more comprehensive guidance? Check out the App Canvas in Giant Speck
