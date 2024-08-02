@@ -5,7 +5,7 @@
             "type": "section",
             "text": {
                 "type": "mrkdwn",
-                "text": "test\n*Delete Messages*: Use this app to delete messages (+ threaded replies) and generate the user token (`xoxp-1234567890`) for your current user."
+                "text": "*Delete Messages*: Use this app to delete messages (+ threaded replies) and generate the user token (`xoxp-1234567890`) for your current user."
             }
         },
         {
