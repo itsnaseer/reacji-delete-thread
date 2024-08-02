@@ -10,9 +10,9 @@ from flask import Flask, request
 
 from custom_installation_store import CustomInstallationStore
 
-#newrelic agent initialization
-import newrelic.agent
-newrelic.agent.initialize('newrelic.ini')
+# newrelic agent initialization
+# import newrelic.agent
+# newrelic.agent.initialize('newrelic.ini')
 
 # Initialize Flask app
 flask_app = Flask(__name__)

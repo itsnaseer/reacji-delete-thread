@@ -1,1 +1,1 @@
-web: newrelic-admin run-program python bolt_app.py
+web: python bolt_app.py
