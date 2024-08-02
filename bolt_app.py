@@ -1,4 +1,5 @@
 import os
+import json
 import logging
 from slack_bolt import App
 from slack_bolt.oauth.oauth_settings import OAuthSettings
@@ -7,7 +8,6 @@ from slack_sdk.errors import SlackApiError
 from sqlalchemy import create_engine, MetaData
 from flask import Flask, request
 
-import json
 from custom_installation_store import CustomInstallationStore
 
 # Initialize Flask app
@@ -67,6 +67,10 @@ bolt_app = App(
 
 # Initialize Slack request handler for Flask
 handler = SlackRequestHandler(bolt_app)
+
+# Load app home JSON
+with open('app_home.json') as f:
+    app_home_view = json.load(f)
 
 # Route for Slack events
 @flask_app.route("/slack/events", methods=["POST"])
@@ -199,9 +203,11 @@ def handle_reaction_added(client, event, context, logger):
 def update_home_tab(client, event, logger):
     user_id = event["user"]
     try:
+        # Replace placeholder with actual user ID
+        view = json.dumps(app_home_view).replace("<@{user_id}>", f"<@{user_id}>")
         client.views_publish(
             user_id=user_id,
-            view=open('app_home.json')
+            view=json.loads(view)
         )
         logger.info(f"Home tab published")
 
