@@ -72,6 +72,11 @@ bolt_app = App(
 # Handle the OAuth redirect
 @flask_app.route("/slack/oauth_redirect", methods=["GET"])
 def oauth_redirect():
+    code = request.args.get("code")
+    state = request.args.get("state")
+    if not code or not state:
+        logging.error("Missing 'code' or 'state' in OAuth redirect")
+        return "Bad Request: Missing 'code' or 'state'", 400
     try:
         return handler.handle(request)
     except Exception as e:
