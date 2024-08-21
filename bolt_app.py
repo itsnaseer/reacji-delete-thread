@@ -94,15 +94,25 @@ def oauth_redirect():
             redirect_uri=os.getenv("REDIRECT_URL")
         )
 
+        enterprise_id = response.get("enterprise", {}).get("id")
+        team_id = response.get("team", {}).get("id")
+        user_id = response.get("authed_user", {}).get("id")
+        bot_token = response.get("access_token")
+        user_token = response.get("authed_user", {}).get("access_token")
+
+        if not enterprise_id and not team_id:
+            logging.error("Failed to obtain enterprise_id or team_id from the OAuth response")
+            return "Internal Server Error", 500
+
         installation_store.save(Installation(
-            enterprise_id=response.get("enterprise_id"),
-            team_id=response.get("team").get("id"),
-            user_id=response.get("authed_user").get("id"),
-            bot_token=response.get("access_token"),
-            user_token=response.get("authed_user").get("access_token")
+            enterprise_id=enterprise_id,
+            team_id=team_id,
+            user_id=user_id,
+            bot_token=bot_token,
+            user_token=user_token
         ))
 
-        logging.info(f"Installation successful for team {response.get('team').get('id')}")
+        logging.info(f"Installation successful for {'enterprise' if enterprise_id else 'team'} {enterprise_id or team_id}")
         return "Installation successful!", 200
 
     except Exception as e:
