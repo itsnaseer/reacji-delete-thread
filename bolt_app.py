@@ -69,6 +69,15 @@ bolt_app = App(
     )
 )
 
+# Handle the OAuth redirect
+@flask_app.route("/slack/oauth_redirect", methods=["GET"])
+def oauth_redirect():
+    try:
+        return handler.handle(request)
+    except Exception as e:
+        logging.error(f"Error handling OAuth redirect: {e}")
+        return "Internal Server Error", 500
+
 # Initialize Slack request handler for Flask
 handler = SlackRequestHandler(bolt_app)
 
