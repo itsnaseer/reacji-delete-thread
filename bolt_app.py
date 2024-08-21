@@ -76,21 +76,40 @@ bolt_app = App(
 # Handle the OAuth redirect
 @flask_app.route("/slack/oauth_redirect", methods=["GET"])
 def oauth_redirect():
+    # Log the incoming request arguments
+    logging.info(f"Received OAuth redirect request with args: {request.args}")
+
     code = request.args.get("code")
     state = request.args.get("state")
-    logging.info(f"Received args: {request.args}")
+
+    # Log the extracted code and state
+    logging.info(f"Extracted code: {code}")
+    logging.info(f"Extracted state: {state}")
+
     if not code or not state:
         logging.error("Missing 'code' or 'state' in OAuth redirect")
         return "Bad Request: Missing 'code' or 'state'", 400
 
     try:
         client = WebClient()
+
+        # Log before making the OAuth request
+        logging.info(f"Requesting OAuth token with code: {code}")
+
         response = client.oauth_v2_access(
             client_id=os.getenv("SLACK_CLIENT_ID"),
             client_secret=os.getenv("SLACK_CLIENT_SECRET"),
             code=code,
             redirect_uri=os.getenv("REDIRECT_URL")
         )
+
+        # Log the response from Slack
+        logging.info(f"Received OAuth response: {response}")
+
+        # Log what will be saved to the installation store
+        logging.info(f"Saving installation: enterprise_id={response.get('enterprise_id')}, "
+                     f"team_id={response.get('team').get('id')}, "
+                     f"user_id={response.get('authed_user').get('id')}")
 
         installation_store.save(Installation(
             enterprise_id=response.get("enterprise_id"),
@@ -103,8 +122,11 @@ def oauth_redirect():
         logging.info(f"Installation successful for team {response.get('team').get('id')}")
         return "Installation successful!", 200
 
+    except SlackApiError as e:
+        logging.error(f"Slack API Error: {e.response['error']}")
+        return "Internal Server Error", 500
     except Exception as e:
-        logging.error(f"Error handling OAuth redirect: {e}")
+        logging.error(f"Unexpected error: {e}")
         return "Internal Server Error", 500
 
 # Initialize Slack request handler for Flask
