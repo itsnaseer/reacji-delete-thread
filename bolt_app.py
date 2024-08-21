@@ -79,8 +79,6 @@ def oauth_redirect():
     code = request.args.get("code")
     state = request.args.get("state")
 
-    logging.info(f"Received OAuth redirect request with code: {code}, state: {state}")
-
     if not code:
         logging.error("Missing 'code' in OAuth redirect")
         return "Bad Request: Missing 'code'", 400
@@ -94,27 +92,32 @@ def oauth_redirect():
             redirect_uri=os.getenv("REDIRECT_URL")
         )
 
-        logging.info(f"OAuth response: {response}")  # Log the entire response
+        logging.info(f"OAuth response: {response}")
 
+        # Handle enterprise vs team installations
         enterprise_id = response.get("enterprise", {}).get("id")
         team_id = response.get("team", {}).get("id")
         user_id = response.get("authed_user", {}).get("id")
         bot_token = response.get("access_token")
         user_token = response.get("authed_user", {}).get("access_token")
 
+        # Ensure either enterprise_id or team_id is present
         if not enterprise_id and not team_id:
             logging.error("Failed to obtain enterprise_id or team_id from the OAuth response")
             return "Internal Server Error", 500
 
-        installation_store.save(Installation(
+        installation = Installation(
             enterprise_id=enterprise_id,
             team_id=team_id,
             user_id=user_id,
             bot_token=bot_token,
             user_token=user_token
-        ))
+        )
 
-        logging.info(f"Installation successful for {'enterprise' if enterprise_id else 'team'} {enterprise_id or team_id}")
+        installation_store.save(installation)
+
+        entity_id = enterprise_id if enterprise_id else team_id
+        logging.info(f"Installation successful for {'enterprise' if enterprise_id else 'team'} {entity_id}")
         return "Installation successful!", 200
 
     except Exception as e:
