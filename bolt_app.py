@@ -94,6 +94,7 @@ def oauth_redirect():
             redirect_uri=os.getenv("REDIRECT_URL")
         )
 
+        # Handle enterprise installs
         enterprise_id = response.get("enterprise", {}).get("id")
         team_id = response.get("team", {}).get("id")
         user_id = response.get("authed_user", {}).get("id")
