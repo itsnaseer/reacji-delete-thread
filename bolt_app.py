@@ -9,9 +9,10 @@ from sqlalchemy import create_engine, MetaData
 from flask import Flask, request
 from slack_sdk.oauth import OAuthStateUtils
 from slack_sdk.web import WebClient
-from slack_sdk.oauth.installation_store import Installation
+#from slack_sdk.oauth.installation_store import Installation
 
 from custom_installation_store import CustomInstallationStore
+from custom_installation_store import Installation
 
 # newrelic agent initialization
 # import newrelic.agent
