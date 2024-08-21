@@ -74,7 +74,9 @@ bolt_app = App(
 def oauth_redirect():
     code = request.args.get("code")
     state = request.args.get("state")
+    print("oauth_redirect")
     if not code or not state:
+        print("not code")
         logging.error("Missing 'code' or 'state' in OAuth redirect")
         return "Bad Request: Missing 'code' or 'state'", 400
     try:
