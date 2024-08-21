@@ -12,6 +12,7 @@ class Installation:
         self.user_token = user_token
         self.created_at = created_at
         self.updated_at = updated_at
+        self.bot_scopes = bot_scopes  # Add this line
 
 class CustomInstallationStore(InstallationStore):
     def __init__(self, client_id, engine, logger=None):
@@ -36,21 +37,22 @@ class CustomInstallationStore(InstallationStore):
     def logger(self):
         return self._logger
 
-    def save(self, installation: Installation):
-        id_value = installation.enterprise_id if installation.enterprise_id else installation.team_id
-        id_type = 'enterprise_id' if installation.enterprise_id else 'team_id'
-        with self.engine.connect() as connection:
-            stmt = self.installations.insert().values(
-                team_id=installation.team_id,
-                access_token=installation.user_token,
-                user_id=installation.user_id,
-                created_at=installation.created_at,
-                updated_at=installation.updated_at,
-                bot_token=installation.bot_token,
-                enterprise_id=installation.enterprise_id,
-                id_type=id_type  # Ensure id_type is saved
-            )
-            connection.execute(stmt)
+def save(self, installation: Installation):
+    id_value = installation.enterprise_id if installation.enterprise_id else installation.team_id
+    id_type = 'enterprise_id' if installation.enterprise_id else 'team_id'
+    with self.engine.connect() as connection:
+        stmt = self.installations.insert().values(
+            team_id=installation.team_id,
+            access_token=installation.user_token,
+            user_id=installation.user_id,
+            created_at=installation.created_at,
+            updated_at=installation.updated_at,
+            bot_token=installation.bot_token,
+            enterprise_id=installation.enterprise_id,
+            id_type=id_type,
+            bot_scopes=installation.bot_scopes  # Ensure bot_scopes is saved
+        )
+        connection.execute(stmt)
 
     def find_installation(self, *, enterprise_id=None, team_id=None, user_id=None, is_enterprise_install=None):
         id_value = enterprise_id if enterprise_id else team_id
