@@ -7,6 +7,8 @@ from slack_bolt.adapter.flask import SlackRequestHandler
 from slack_sdk.errors import SlackApiError
 from sqlalchemy import create_engine, MetaData
 from flask import Flask, request
+from slack_sdk.oauth import OAuthStateUtils
+from slack_sdk.web import WebClient
 
 from custom_installation_store import CustomInstallationStore
 
@@ -16,6 +18,7 @@ from custom_installation_store import CustomInstallationStore
 
 # Initialize Flask app
 flask_app = Flask(__name__)
+flask_app.secret_key = os.getenv("FLASK_SECRET_KEY")
 
 # Configure logging
 logging.basicConfig(level=logging.DEBUG)
@@ -74,13 +77,31 @@ bolt_app = App(
 def oauth_redirect():
     code = request.args.get("code")
     state = request.args.get("state")
-    print("oauth_redirect")
+
     if not code or not state:
-        print("not code")
         logging.error("Missing 'code' or 'state' in OAuth redirect")
         return "Bad Request: Missing 'code' or 'state'", 400
+
     try:
-        return handler.handle(request)
+        client = WebClient()
+        response = client.oauth_v2_access(
+            client_id=os.getenv("SLACK_CLIENT_ID"),
+            client_secret=os.getenv("SLACK_CLIENT_SECRET"),
+            code=code,
+            redirect_uri=os.getenv("REDIRECT_URL")
+        )
+
+        installation_store.save(Installation(
+            enterprise_id=response.get("enterprise_id"),
+            team_id=response.get("team").get("id"),
+            user_id=response.get("authed_user").get("id"),
+            bot_token=response.get("access_token"),
+            user_token=response.get("authed_user").get("access_token")
+        ))
+
+        logging.info(f"Installation successful for team {response.get('team').get('id')}")
+        return "Installation successful!", 200
+
     except Exception as e:
         logging.error(f"Error handling OAuth redirect: {e}")
         return "Internal Server Error", 500
