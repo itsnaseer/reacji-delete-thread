@@ -18,7 +18,7 @@ from custom_installation_store import CustomInstallationStore
 flask_app = Flask(__name__)
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 
 # Database setup
 DATABASE_URL = os.getenv("DATABASE_URL")
