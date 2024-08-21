@@ -3,6 +3,16 @@ from sqlalchemy import Table, Column, String, MetaData, select
 from sqlalchemy.orm import sessionmaker
 from slack_sdk.oauth.installation_store import InstallationStore, Installation, Bot
 
+class Installation:
+    def __init__(self, enterprise_id=None, team_id=None, user_id=None, bot_token=None, user_token=None, created_at=None, updated_at=None):
+        self.enterprise_id = enterprise_id
+        self.team_id = team_id
+        self.user_id = user_id
+        self.bot_token = bot_token
+        self.user_token = user_token
+        self.created_at = created_at
+        self.updated_at = updated_at
+
 class CustomInstallationStore(InstallationStore):
     def __init__(self, client_id, engine, logger=None):
         self.client_id = client_id
