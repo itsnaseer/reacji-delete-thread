@@ -94,16 +94,22 @@ def oauth_redirect():
 
         logging.info(f"OAuth response: {response}")
 
-        # Handle enterprise vs team installations
-        enterprise_id = response.get("enterprise", {}).get("id")
-        team_id = response.get("team", {}).get("id")
-        user_id = response.get("authed_user", {}).get("id")
-        bot_token = response.get("access_token")
-        user_token = response.get("authed_user", {}).get("access_token")
+        enterprise_info = response.get("enterprise")
+        team_info = response.get("team")
+        authed_user_info = response.get("authed_user")
 
-        # Ensure either enterprise_id or team_id is present
-        if not enterprise_id and not team_id:
-            logging.error("Failed to obtain enterprise_id or team_id from the OAuth response")
+        if enterprise_info is None and team_info is None:
+            logging.error("Failed to obtain enterprise or team information from the OAuth response.")
+            return "Internal Server Error", 500
+
+        enterprise_id = enterprise_info.get("id") if enterprise_info else None
+        team_id = team_info.get("id") if team_info else None
+        user_id = authed_user_info.get("id") if authed_user_info else None
+        bot_token = response.get("access_token")
+        user_token = authed_user_info.get("access_token") if authed_user_info else None
+
+        if not bot_token:
+            logging.error("Failed to obtain bot token from the OAuth response.")
             return "Internal Server Error", 500
 
         installation = Installation(
